@@ -1,51 +1,63 @@
 package com.example.deep_camera
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.example.deep_camera.ui.theme.DeepCameraTheme
 
 class MainActivity : ComponentActivity() {
+    private lateinit var sharedPreferences: SharedPreferences
+    private val localContext = staticCompositionLocalOf<Context> {
+        error("No context provided")
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        sharedPreferences = getSharedPreferences("DeepCamera", MODE_PRIVATE)
         if (checkSelfPermission(android.Manifest.permission.CAMERA) !=
             android.content.pm.PackageManager.PERMISSION_GRANTED) {
             requestPermissionLauncher.launch(android.Manifest.permission.CAMERA)
         }
         enableEdgeToEdge()
         setContent {
-            DeepCameraTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                    // 显示权限授予对话框
-                    if (showGrantedDialog.value) {
-                        GrantedDialog(
-                            onDismiss = { showGrantedDialog.value = false }
-                        )
-                    }
-                    // 显示权限拒绝对话框
-                    if (showDeniedDialog.value) {
-                        DeniedDialog(
-                            onDismiss = {
-                                showDeniedDialog.value = false
-                                finish()    // 关闭应用
-                            }
-                        )
+            CompositionLocalProvider(localContext provides this) {
+                DeepCameraTheme {
+                    Surface(modifier = Modifier.fillMaxSize()) {
+                        AppNavigation()
+                        // 显示权限授予对话框
+                        if (showGrantedDialog.value) {
+                            GrantedDialog(
+                                onDismiss = { showGrantedDialog.value = false }
+                            )
+                        }
+                        // 显示权限拒绝对话框
+                        if (showDeniedDialog.value) {
+                            DeniedDialog(
+                                onDismiss = {
+                                    showDeniedDialog.value = false
+                                    finish()    // 关闭应用
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -64,6 +76,26 @@ class MainActivity : ComponentActivity() {
         } else {
             // 权限被拒绝，可提示用户
             showDeniedDialog.value = true
+        }
+    }
+
+    @Composable
+    fun AppNavigation() {
+        Log.i("AppNavigation", "start")
+        val navController = rememberNavController()
+        NavHost(navController = navController, startDestination = "main") {
+            composable("main") {
+                MainSurface(
+                    navController = navController,
+                    sharedPreferences = sharedPreferences
+                )
+            }
+            composable("settings") {
+                SettingsSurface(
+                    navController = navController,
+                    sharedPreferences = sharedPreferences
+                )
+            }
         }
     }
 }
@@ -96,19 +128,10 @@ fun DeniedDialog(onDismiss: () -> Unit) {
     )
 }
 
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
     DeepCameraTheme {
-        Greeting("Android")
+        MainSurface()
     }
 }

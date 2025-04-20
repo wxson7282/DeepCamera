@@ -37,7 +37,7 @@ import com.google.gson.Gson
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingSurface(
+fun SettingsSurface(
     navController: NavController? = null,
     sharedPreferences: SharedPreferences? = null
 ) {
@@ -144,7 +144,7 @@ fun SettingSurface(
 @Preview(showBackground = true)
 @Composable
 fun SettingSurfacePreview() {
-    SettingSurface()
+    SettingsSurface()
 }
 
 class FocusItem(var focusAt: Float, var selected: Boolean)

@@ -1,5 +1,7 @@
 package com.example.deep_camera
 
+import android.content.Context
+import android.content.SharedPreferences
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,13 +19,15 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainSurface(navController: NavController? = null) {
+fun MainSurface(navController: NavController? = null,
+                sharedPreferences: SharedPreferences? = null) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -63,7 +67,7 @@ fun MainSurface(navController: NavController? = null) {
             }
         }
     ) { paddingValues ->
-        Screen(modifier = Modifier.padding(paddingValues))
+        Camera(modifier = Modifier.fillMaxSize().padding(paddingValues))
     }
 }
 
