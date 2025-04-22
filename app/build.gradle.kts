@@ -55,6 +55,7 @@ dependencies {
     implementation(libs.androidx.camerax.camera2)
     implementation(libs.androidx.camerax.lifecycle)
     implementation(libs.androidx.camerax.view)
+    implementation(libs.androidx.constraintlayout)
     implementation(libs.gson)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
