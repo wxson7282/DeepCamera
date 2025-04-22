@@ -29,17 +29,28 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Composable
 fun Camera(modifier: Modifier = Modifier) {
     // 在这里编写您的屏幕内容
     Log.i("Camera", "Start")
-    Column(modifier = modifier.fillMaxSize()) {
-        Box( modifier = Modifier.weight(5f) ) {
+    ConstraintLayout(modifier = modifier.fillMaxSize()) {
+        val (cameraPreviewRef, cameraPanelRef) = remember { createRefs() }
+        Box(modifier = Modifier.constrainAs(cameraPreviewRef) {
+            top.linkTo(parent.top)
+            bottom.linkTo(cameraPanelRef.top, margin = 80.dp)
+            start.linkTo(parent.start)
+            end.linkTo(parent.end)
+        }) {
             CameraPreview()
         }
-        Box( modifier = Modifier.weight(1f) ) {
+        Box(modifier = Modifier.constrainAs(cameraPanelRef) {
+            bottom.linkTo(parent.bottom)
+            start.linkTo(parent.start)
+            end.linkTo(parent.end)
+        }) {
             CameraPanel()
         }
     }
@@ -85,8 +96,8 @@ private fun CameraPanel() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(4.dp)
-            .border(2.dp, Color.Blue),
+            .padding(1.dp)
+            .border(1.dp, Color.Blue),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         // 列举全部镜头
