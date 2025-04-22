@@ -101,9 +101,9 @@ private fun CameraPanel() {
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         // 列举全部镜头
-//        val context = LocalContext.current
-//        val cameraLensList = getCameraLensList(context)
-        val cameraLensList = getCameraList()
+        val context = LocalContext.current
+        val cameraLensList = getCameraLensList(context)
+//        val cameraLensList = getCameraList()
         val checkedStates = remember {
             mutableStateListOf<Boolean>().apply {
                 repeat(cameraLensList.size) { add(false) }
@@ -151,9 +151,9 @@ private fun getCameraLensList(context: Context): List<CameraSelector> {
 /**
  * 获取相机列表 only for test
  */
-private fun getCameraList(): List<CameraSelector> {
-    return mutableListOf<CameraSelector>(
-        CameraSelector.DEFAULT_BACK_CAMERA,
-        CameraSelector.DEFAULT_FRONT_CAMERA
-    )
-}
+//private fun getCameraList(): List<CameraSelector> {
+//    return mutableListOf<CameraSelector>(
+//        CameraSelector.DEFAULT_BACK_CAMERA,
+//        CameraSelector.DEFAULT_FRONT_CAMERA
+//    )
+//}

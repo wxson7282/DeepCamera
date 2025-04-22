@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -122,16 +123,20 @@ fun SettingsSurface(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
+                    val textState = remember {mutableStateOf(item.focusAt.toString())}
                     OutlinedTextField(
                         modifier = Modifier.padding(2.dp),
-                        value = item.focusAt.toString(),
+                        value = textState.value,
                         onValueChange = { newValue ->
+                            textState.value = newValue
                             item.focusAt = newValue.toFloatOrNull() ?: 0.0F
                         }
                     )
+                    val checkedState = remember {mutableStateOf(item.selected)}
                     Checkbox(
-                        checked = item.selected,
+                        checked = checkedState.value,
                         onCheckedChange = { newValue ->
+                            checkedState.value = newValue
                             item.selected = newValue
                         })
                 }
@@ -151,9 +156,7 @@ class FocusItem(var focusAt: Float, var selected: Boolean)
 
 private val defaultFocusArray = arrayOf<FocusItem>(
     FocusItem(0.0F, false),
-    FocusItem(0.01f, true),
     FocusItem(0.04f, true),
-    FocusItem(0.05f, true),
     FocusItem(0.08f, true),
     FocusItem(0.1f, true),
     FocusItem(0.3f, true),
