@@ -153,16 +153,17 @@ fun SettingSurfacePreview() {
 }
 
 class FocusItem(var focusAt: Float, var selected: Boolean)
+class ZoomRatioRange(var min: Float, var max: Float)
 
 private val defaultFocusArray = arrayOf<FocusItem>(
-    FocusItem(0.0F, false),
-    FocusItem(0.04f, true),
-    FocusItem(0.08f, true),
-    FocusItem(0.1f, true),
-    FocusItem(0.3f, true),
-    FocusItem(0.5f, true),
-    FocusItem(0.7f, true),
-    FocusItem(1.0f, true)
+    FocusItem(1.0F, true),
+    FocusItem(2.0f, true),
+    FocusItem(3.0f, true),
+    FocusItem(4.0f, true),
+    FocusItem(5.0f, true),
+    FocusItem(6.0f, true),
+    FocusItem(7.0f, true),
+    FocusItem(8.0f, true)
 )
 
 private fun loadFocusArray(sharedPreferences: SharedPreferences): Array<FocusItem>? {
@@ -181,5 +182,9 @@ private fun navigateToMain(navController: NavController?) {
             inclusive = true
         }
     }
+}
+
+private fun getLocalZoomRatioRange(context: android.content.Context) {
+
 }
 
