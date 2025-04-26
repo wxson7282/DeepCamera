@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,6 +43,7 @@ fun SettingsSurface(
     navController: NavController? = null,
     sharedPreferences: SharedPreferences? = null
 ) {
+    val openDialog = remember { mutableStateOf(false) }
     val mutableStateFocusList = remember {
         mutableStateListOf<FocusItem>(
             *(if (sharedPreferences != null) {
@@ -128,8 +130,16 @@ fun SettingsSurface(
                         modifier = Modifier.padding(2.dp),
                         value = textState.value,
                         onValueChange = { newValue ->
-                            textState.value = newValue
-                            item.focusAt = newValue.toFloatOrNull() ?: 0.0F
+                            if (!checkFocusDistance(newValue.toFloatOrNull()?: 0.0F)) {
+                                // 弹出对话框提示用户输入不合法
+                                openDialog.value = true
+                                // 不合法的输入，不更新状态
+                                return@OutlinedTextField
+                            } else {
+                                textState.value = newValue
+                                item.focusAt = newValue.toFloatOrNull() ?: 0.0F
+                            }
+
                         }
                     )
                     val checkedState = remember {mutableStateOf(item.selected)}
@@ -143,8 +153,19 @@ fun SettingsSurface(
             }
         }
     }
+    if (openDialog.value) {
+        AlertDialog(
+            onDismissRequest = { openDialog.value = false },
+            title = { Text("Error") },
+            text = { Text("Please input a number between 0 and 1") },
+            confirmButton = {
+                IconButton(onClick = { openDialog.value = false }) {
+                    Icon(Icons.Filled.Done, contentDescription = "OK")
+                }
+            }
+        )
+    }
 }
-
 
 @Preview(showBackground = true)
 @Composable
@@ -153,17 +174,15 @@ fun SettingSurfacePreview() {
 }
 
 class FocusItem(var focusAt: Float, var selected: Boolean)
-class ZoomRatioRange(var min: Float, var max: Float)
 
 private val defaultFocusArray = arrayOf<FocusItem>(
-    FocusItem(1.0F, true),
-    FocusItem(2.0f, true),
-    FocusItem(3.0f, true),
-    FocusItem(4.0f, true),
-    FocusItem(5.0f, true),
-    FocusItem(6.0f, true),
-    FocusItem(7.0f, true),
-    FocusItem(8.0f, true)
+    FocusItem(0.0F, true),
+    FocusItem(0.1f, true),
+    FocusItem(0.2f, true),
+    FocusItem(0.4f, true),
+    FocusItem(0.6f, true),
+    FocusItem(0.8f, true),
+    FocusItem(1.0f, true)
 )
 
 private fun loadFocusArray(sharedPreferences: SharedPreferences): Array<FocusItem>? {
@@ -184,7 +203,7 @@ private fun navigateToMain(navController: NavController?) {
     }
 }
 
-private fun getLocalZoomRatioRange(context: android.content.Context) {
-
+//焦点距离合规性检查
+private fun checkFocusDistance(focusDistance: Float): Boolean {
+    return focusDistance >= 0.0f && focusDistance <= 1.0f
 }
-
