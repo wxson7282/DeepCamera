@@ -140,6 +140,13 @@ private fun takePictures(
             .LENS_INFO_HYPERFOCAL_DISTANCE
     ) ?: 0f
     Log.i("MainSurface", "hyperFocalDistance: $hyperFocalDistance")
+    val availableFocalLengths = characteristic.get(
+        CameraCharacteristics
+           .LENS_INFO_AVAILABLE_FOCAL_LENGTHS
+    )
+    availableFocalLengths?.forEach {
+        Log.i("MainSurface", "availableFocalLengths: $it")
+    }
     // *************************************************************************************
 
     // 获取 CameraProvider
