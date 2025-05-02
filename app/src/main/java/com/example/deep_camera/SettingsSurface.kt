@@ -175,7 +175,7 @@ fun SettingSurfacePreview() {
 
 class FocusItem(var focusAt: Float, var selected: Boolean)
 
-private val defaultFocusArray = arrayOf<FocusItem>(
+val defaultFocusArray = arrayOf<FocusItem>(
     FocusItem(0.0F, true),
     FocusItem(0.1f, true),
     FocusItem(0.2f, true),
@@ -185,8 +185,8 @@ private val defaultFocusArray = arrayOf<FocusItem>(
     FocusItem(1.0f, true)
 )
 
-private fun loadFocusArray(sharedPreferences: SharedPreferences): Array<FocusItem>? {
-    val json = sharedPreferences.getString("focusArray", null)
+fun loadFocusArray(sharedPreferences: SharedPreferences?): Array<FocusItem>? {
+    val json = sharedPreferences?.getString("focusArray", null)
     return json?.let { Gson().fromJson(it, Array<FocusItem>::class.java) }
 }
 
