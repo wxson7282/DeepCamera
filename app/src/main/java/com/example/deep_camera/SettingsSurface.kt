@@ -1,6 +1,10 @@
 package com.example.deep_camera
 
+import android.content.Context
 import android.content.SharedPreferences
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraMetadata
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -47,7 +51,7 @@ fun SettingsSurface(
     val mutableStateFocusList = remember {
         mutableStateListOf<FocusItem>(
             *(if (sharedPreferences != null) {
-                loadFocusArray(sharedPreferences) ?: defaultFocusArray
+                Util.loadFocusArray(sharedPreferences) ?: defaultFocusArray
             } else {
                 defaultFocusArray
             })
@@ -85,7 +89,7 @@ fun SettingsSurface(
                             .background(MaterialTheme.colorScheme.primary),
                         onClick = {
                             sharedPreferences?.let {
-                                saveFocusArray(it, mutableStateFocusList.toTypedArray())
+                                Util.saveFocusArray(it, mutableStateFocusList.toTypedArray())
                             }
                             navigateToMain(navController)
                         }) {
@@ -173,8 +177,6 @@ fun SettingSurfacePreview() {
     SettingsSurface()
 }
 
-class FocusItem(var focusAt: Float, var selected: Boolean)
-
 val defaultFocusArray = arrayOf<FocusItem>(
     FocusItem(0.0F, true),
     FocusItem(0.1f, true),
@@ -184,16 +186,6 @@ val defaultFocusArray = arrayOf<FocusItem>(
     FocusItem(0.8f, true),
     FocusItem(1.0f, true)
 )
-
-fun loadFocusArray(sharedPreferences: SharedPreferences?): Array<FocusItem>? {
-    val json = sharedPreferences?.getString("focusArray", null)
-    return json?.let { Gson().fromJson(it, Array<FocusItem>::class.java) }
-}
-
-private fun saveFocusArray(sharedPreferences: SharedPreferences, focusArray: Array<FocusItem>) {
-    val json = Gson().toJson(focusArray)
-    sharedPreferences.edit { putString("focusArray", json) }
-}
 
 private fun navigateToMain(navController: NavController?) {
     navController?.navigate("main") {

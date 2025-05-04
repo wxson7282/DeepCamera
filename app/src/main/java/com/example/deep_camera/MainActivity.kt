@@ -15,13 +15,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.deep_camera.Util.getMinFocusDistance
 import com.example.deep_camera.ui.theme.DeepCameraTheme
 
 class MainActivity : ComponentActivity() {
@@ -37,10 +40,12 @@ class MainActivity : ComponentActivity() {
             android.content.pm.PackageManager.PERMISSION_GRANTED) {
             requestPermissionLauncher.launch(android.Manifest.permission.CAMERA)
         }
+
         enableEdgeToEdge()
         setContent {
             CompositionLocalProvider(localContext provides this) {
                 DeepCameraTheme {
+                    InitFocusDistanceList()
                     Surface(modifier = Modifier.fillMaxSize()) {
                         AppNavigation()
                         // 显示权限授予对话框
@@ -98,10 +103,32 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    @Composable
+    fun InitFocusDistanceList() {
+        val localMinFocusDistance = getMinFocusDistance(this)
+        val mutableStateFocusList = remember {
+            mutableStateListOf<FocusItem>(
+                *(Util.loadFocusArray(sharedPreferences) ?: defaultFocusArray)
+            )
+        }
+        // 检查mutableStateFocusList中的最大值和最小值
+        val maxValue = mutableStateFocusList.maxOf { it.focusAt }
+        val minValue = mutableStateFocusList.minOf { it.focusAt }
+        // 如果最大值不等于localMinFocusDistance或最小值不等于0.0f,则重新初始化mutableStateFocusList
+        // 并保存到sharedPreferences
+        if (maxValue != localMinFocusDistance || minValue!= 0.0f) {
+            mutableStateFocusList.clear()
+            mutableStateFocusList.addAll(Util.initFocusArray(localMinFocusDistance))
+            sharedPreferences.let {
+                Util.saveFocusArray(it, mutableStateFocusList.toTypedArray())
+            }
+        }
+    }
 }
 
 @Composable
-fun GrantedDialog(onDismiss: () -> Unit) {
+private fun GrantedDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("权限授予") },
@@ -115,7 +142,7 @@ fun GrantedDialog(onDismiss: () -> Unit) {
 }
 
 @Composable
-fun DeniedDialog(onDismiss: () -> Unit) {
+private fun DeniedDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("权限拒绝") },
@@ -130,8 +157,8 @@ fun DeniedDialog(onDismiss: () -> Unit) {
 
 @Preview(showBackground = true)
 @Composable
-fun GreetingPreview() {
+fun MainActivityPreview() {
     DeepCameraTheme {
-        MainSurface()
+        SettingsSurface()
     }
 }
