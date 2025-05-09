@@ -15,7 +15,6 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCapture.OnImageSavedCallback
 import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.impl.utils.executor.CameraXExecutors
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.edit
 import androidx.lifecycle.LifecycleOwner
@@ -23,7 +22,6 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.gson.Gson
 import java.io.File
 import java.util.concurrent.Executors
-import kotlin.collections.contains
 
 object Util {
 
