@@ -1,5 +1,6 @@
 package com.example.deep_camera
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.hardware.camera2.CameraCharacteristics
@@ -14,8 +15,8 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCapture.OnImageSavedCallback
 import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.impl.utils.executor.CameraXExecutors
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.compose.ui.text.font.FontLoadingStrategy
 import androidx.core.content.edit
 import androidx.lifecycle.LifecycleOwner
 import com.google.common.util.concurrent.ListenableFuture
@@ -32,6 +33,7 @@ object Util {
      * @param lifecycleOwner LifecycleOwner
      * @param focusList 对焦距离列表
      */
+    @SuppressLint("RestrictedApi")
     @androidx.annotation.OptIn(ExperimentalCamera2Interop::class)
     fun takePictures(
         context: Context,
@@ -67,6 +69,26 @@ object Util {
         }
         val camera2CameraControl = Camera2CameraControl.from(cameraControl)
         val outputDirectory = context.filesDir
+
+        // 检查相机是否支持手动对焦
+        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as android.hardware.camera2.CameraManager
+        val cameraId = cameraManager.cameraIdList.firstOrNull {
+            val characteristics = cameraManager.getCameraCharacteristics(it)
+            characteristics.get(CameraCharacteristics.LENS_FACING) == CameraMetadata.LENS_FACING_BACK
+        }
+        if (cameraId == null) {
+            Log.e("takePictures", "No back camera found")
+            return
+        }
+        val characteristic = cameraManager.getCameraCharacteristics(cameraId)
+        val deviceLevel = characteristic.get(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL)
+        Log.i("takePictures", "deviceLevel: $deviceLevel")
+        val afAvailability = characteristic.get(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES)
+        if (afAvailability == null || !afAvailability.contains(CameraMetadata.CONTROL_AF_MODE_OFF)) {
+            Log.e("takePictures", "Camera does not support manual focus")
+            return
+        }
+        val singleThreadExecutor = Executors.newSingleThreadExecutor()
         // 根据focusList中的selected属性设置对焦距离，并拍照。
         focusList.forEach { focusItem ->
             if (focusItem.selected) {
@@ -81,16 +103,19 @@ object Util {
                     camera2CameraControl.setCaptureRequestOptions(captureRequestOptions)
                 future.addListener({
                     if (future.isDone && !future.isCancelled) {
-                        // setCaptureRequestOptions操作成功完成
+                        // 显示当前线程名称
+                        Log.i("takePictures", "Current thread name: ${Thread.currentThread().name}")
                         Log.i("takePictures", "Focus distance set to ${focusItem.focusAt}")
                         try {
                             // 创建一个临时文件来保存图片
                             val photoFile = File(outputDirectory, "${System.currentTimeMillis()}.jpg")
                             val outputOptions =
                                 ImageCapture.OutputFileOptions.Builder(photoFile).build()
+                            // 等待对焦完成
+                            Thread.sleep(500)
                             // 执行拍照操作
                             imageCapture.takePicture(
-                                outputOptions, Executors.newSingleThreadExecutor(),
+                                outputOptions, singleThreadExecutor,
                                 object : OnImageSavedCallback {
                                     override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                                         Log.i("takePictures", "Image saved to ${photoFile.absolutePath}")
@@ -103,7 +128,7 @@ object Util {
                             Log.e("takePictures", "Image capture failed", exc)
                         }
                     }
-                }, Executors.newSingleThreadExecutor())
+                }, singleThreadExecutor)
             }
         }
     }
