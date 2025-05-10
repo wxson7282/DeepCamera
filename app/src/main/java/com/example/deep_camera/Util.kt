@@ -129,6 +129,7 @@ object Util {
                 }, singleThreadExecutor)
             }
         }
+        singleThreadExecutor.shutdown()
     }
 
     /**
