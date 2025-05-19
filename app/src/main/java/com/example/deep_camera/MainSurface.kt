@@ -79,7 +79,7 @@ fun MainSurface(
                 IconButton(
                     modifier = Modifier
                         .background(MaterialTheme.colorScheme.primary),
-                    onClick = { Util.takePictures(context, lifecycleOwner, focusList) }) {
+                    onClick = { Util.takeAllPictures(context, lifecycleOwner, focusList) }) {
                     Icon(
                         imageVector = ImageVector.vectorResource(R.drawable.circle),
                         contentDescription = "Shutter"

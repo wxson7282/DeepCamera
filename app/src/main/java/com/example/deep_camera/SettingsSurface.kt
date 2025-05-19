@@ -178,13 +178,13 @@ fun SettingSurfacePreview() {
 }
 
 val defaultFocusArray = arrayOf<FocusItem>(
-    FocusItem(0.0F, true),
-    FocusItem(0.1f, true),
-    FocusItem(0.2f, true),
-    FocusItem(0.4f, true),
-    FocusItem(0.6f, true),
+    FocusItem(1.0F, true),
     FocusItem(0.8f, true),
-    FocusItem(1.0f, true)
+    FocusItem(0.6f, true),
+    FocusItem(0.4f, true),
+    FocusItem(0.2f, true),
+    FocusItem(0.1f, true),
+    FocusItem(0.0f, true)
 )
 
 private fun navigateToMain(navController: NavController?) {
@@ -197,5 +197,6 @@ private fun navigateToMain(navController: NavController?) {
 
 //焦点距离合规性检查
 private fun checkFocusDistance(focusDistance: Float): Boolean {
-    return focusDistance >= 0.0f && focusDistance <= 1.0f
+//    return focusDistance >= 0.0f && focusDistance <= 1.0f
+    return focusDistance >= 0.0f && focusDistance <= 15.0f
 }

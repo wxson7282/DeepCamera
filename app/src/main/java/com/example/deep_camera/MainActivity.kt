@@ -24,7 +24,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.deep_camera.Util.getMinFocusDistance
 import com.example.deep_camera.ui.theme.DeepCameraTheme
 
 class MainActivity : ComponentActivity() {
@@ -106,7 +105,7 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun InitFocusDistanceList() {
-        val localMinFocusDistance = getMinFocusDistance(this)
+        val focusDistance = Util.getFocusDistance(this)
         val mutableStateFocusList = remember {
             mutableStateListOf<FocusItem>(
                 *(Util.loadFocusArray(sharedPreferences) ?: defaultFocusArray)
@@ -115,11 +114,13 @@ class MainActivity : ComponentActivity() {
         // 检查mutableStateFocusList中的最大值和最小值
         val maxValue = mutableStateFocusList.maxOf { it.focusAt }
         val minValue = mutableStateFocusList.minOf { it.focusAt }
-        // 如果最大值不等于localMinFocusDistance或最小值不等于0.0f,则重新初始化mutableStateFocusList
-        // 并保存到sharedPreferences
-        if (maxValue != localMinFocusDistance || minValue!= 0.0f) {
+        // 如果maxValue或minValue与focusDistance不同，则更新mutableStateFocusList
+        if (maxValue != focusDistance.minFocusDistance ||
+            minValue!= focusDistance.hyperFocalDistance) {
             mutableStateFocusList.clear()
-            mutableStateFocusList.addAll(Util.initFocusArray(localMinFocusDistance))
+            mutableStateFocusList.addAll(
+                Util.initFocusArray(focusDistance.minFocusDistance,
+                    focusDistance.hyperFocalDistance))
             sharedPreferences.let {
                 Util.saveFocusArray(it, mutableStateFocusList.toTypedArray())
             }
