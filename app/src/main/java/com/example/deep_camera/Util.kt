@@ -133,7 +133,7 @@ object Util {
                     .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusItem.focusAt)
                     .build()
                 camera2CameraControl.setCaptureRequestOptions(captureRequestOptions)
-                Thread.sleep(2000)
+                Thread.sleep(1000)
                 Log.i("takePictures", "Focus distance set to ${focusItem.focusAt}")
                 takePicture(context, imageCapture, singleThreadExecutor)
             }
