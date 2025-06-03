@@ -1,19 +1,7 @@
 package com.example.deep_camera
 
-import android.content.Context
-import android.content.SharedPreferences
-import android.hardware.camera2.CameraMetadata
-import android.hardware.camera2.CaptureRequest
 import android.util.Log
-import androidx.camera.camera2.interop.Camera2CameraControl
-import androidx.camera.camera2.interop.CaptureRequestOptions
-import androidx.camera.camera2.interop.ExperimentalCamera2Interop
-import androidx.camera.core.Camera
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageCapture
-import androidx.camera.core.ImageCapture.OnImageSavedCallback
-import androidx.camera.core.ImageCaptureException
-import androidx.camera.lifecycle.ProcessCameraProvider
+import android.content.SharedPreferences
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,17 +17,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
-import com.google.common.util.concurrent.ListenableFuture
-import java.io.File
-import java.util.concurrent.Executors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +38,7 @@ fun MainSurface(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val focusList = Util.loadFocusArray(sharedPreferences) ?: defaultFocusArray
+    var stateOfLastImageSaved by remember { mutableStateOf(false) }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -79,7 +68,18 @@ fun MainSurface(
                 IconButton(
                     modifier = Modifier
                         .background(MaterialTheme.colorScheme.primary),
-                    onClick = { Util.takeAllPictures(context, lifecycleOwner, focusList) }) {
+                    onClick = {
+                        Util.takeAllPictures(
+                            context = context,
+                            lifecycleOwner = lifecycleOwner,
+                            focusArray = focusList,
+                            // 取得最后一张照片是否保存的状态
+                            setStateOfLastImageSaved = { newValue ->
+                                stateOfLastImageSaved = newValue
+                                Log.i("MainSurface", "stateOfLastImageSaved: $newValue")
+                            }
+                        )
+                    }) {
                     Icon(
                         imageVector = ImageVector.vectorResource(R.drawable.circle),
                         contentDescription = "Shutter"
@@ -89,7 +89,17 @@ fun MainSurface(
             }
         }
     ) { paddingValues ->
-        Modifier.padding(paddingValues).Camera()
+        if (stateOfLastImageSaved) {
+            Text(
+                text = "Last Image Saved",
+                modifier = Modifier.padding(paddingValues)
+            )
+            stateOfLastImageSaved = false
+            Log.i("MainSurface", "Camera Preview released")
+        } else {
+            Modifier.padding(paddingValues).Camera()
+            Log.i("MainSurface", "Camera Preview updated")
+        }
     }
 }
 

@@ -31,14 +31,18 @@ import java.util.concurrent.Executors
 object Util {
 
     /**
-     * 拍照并保存到指定文件夹
+     * 拍照
      * @param context 上下文
-     * @param imageCapture ImageCapture
-     * @param singleThreadExecutor Executor
+     * @param imageCapture 图片捕获器
+     * @param executor 执行器
+     * @param setStateOfImageSaved 拍照完成后回调函数，用于通知上层界面拍照完成
      */
-    fun takePicture(context: Context,
-                    imageCapture: ImageCapture,
-                    singleThreadExecutor: java.util.concurrent.Executor) {
+    fun takePicture(
+        context: Context,
+        imageCapture: ImageCapture,
+        executor: java.util.concurrent.Executor,
+        setStateOfImageSaved: (Boolean) -> Unit = {}
+    ) {
         try {
             // 创建一个临时文件来保存图片
             val photoFile = File(context.filesDir, "${System.currentTimeMillis()}.jpg")
@@ -46,12 +50,14 @@ object Util {
                 ImageCapture.OutputFileOptions.Builder(photoFile).build()
             // 执行拍照操作
             imageCapture.takePicture(
-                outputOptions, singleThreadExecutor,
+                outputOptions, executor,
                 object : OnImageSavedCallback {
                     @SuppressLint("RestrictedApi", "VisibleForTests")
                     override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                         Log.i("takePictures", "Image saved to ${photoFile.absolutePath}")
+                        setStateOfImageSaved(true)
                     }
+
                     override fun onError(exception: ImageCaptureException) {
                         Log.e("takePictures", "Image capture failed", exception)
                     }
@@ -61,14 +67,22 @@ object Util {
         }
     }
 
+    /**
+     * 拍照
+     * @param context 上下文
+     * @param lifecycleOwner 生命周期所有者
+     * @param focusArray 对焦距离数组
+     * @param setStateOfLastImageSaved 拍照完成后回调函数，用于通知上层界面拍照完成
+     */
     @SuppressLint("RestrictedApi", "VisibleForTests")
     @OptIn(ExperimentalCamera2Interop::class)
     fun takeAllPictures(
         context: Context,
         lifecycleOwner: LifecycleOwner,
-        focusArray: Array<FocusItem>
+        focusArray: Array<FocusItem>,
+        setStateOfLastImageSaved: (Boolean) -> Unit = {}
     ) {
-        val singleThreadExecutor = Executors.newSingleThreadExecutor()
+        val executor = Executors.newSingleThreadExecutor()
         val imageCaptureBuilder = ImageCapture.Builder()
         val camera2Interop = Camera2Interop.Extender<ImageCapture>(imageCaptureBuilder)
         val cameraProvider = ProcessCameraProvider.getInstance(context).get()
@@ -76,19 +90,23 @@ object Util {
             .requireLensFacing(CameraSelector.LENS_FACING_BACK)
             .build()
         val captureCallback = object : CameraCaptureSession.CaptureCallback() {
-            override fun onCaptureStarted(session: CameraCaptureSession,
-                                          request: CaptureRequest,
-                                          timestamp: Long,
-                                          frameNumber: Long) {
+            override fun onCaptureStarted(
+                session: CameraCaptureSession,
+                request: CaptureRequest,
+                timestamp: Long,
+                frameNumber: Long
+            ) {
                 super.onCaptureStarted(session, request, timestamp, frameNumber)
             }
+
             override fun onCaptureProgressed(
                 session: CameraCaptureSession,
                 request: CaptureRequest,
                 partialResult: CaptureResult
-            )   {
+            ) {
                 super.onCaptureProgressed(session, request, partialResult)
             }
+
             override fun onCaptureCompleted(
                 session: CameraCaptureSession,
                 request: CaptureRequest,
@@ -96,6 +114,7 @@ object Util {
             ) {
                 super.onCaptureCompleted(session, request, result)
             }
+
             override fun onCaptureFailed(
                 session: CameraCaptureSession,
                 request: CaptureRequest,
@@ -122,20 +141,35 @@ object Util {
         }
         val cameraControl = camera.cameraControl
         val camera2CameraControl = Camera2CameraControl.from(cameraControl)
-        focusArray.forEach { focusItem ->
-            if (focusItem.selected) {
-
-                val captureRequestOptions = CaptureRequestOptions.Builder()
-                    .setCaptureRequestOption(
-                        CaptureRequest.CONTROL_AF_MODE,
-                        CameraMetadata.CONTROL_AF_MODE_OFF
-                    )
-                    .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusItem.focusAt)
-                    .build()
-                camera2CameraControl.setCaptureRequestOptions(captureRequestOptions)
-                Thread.sleep(1000)
-                Log.i("takePictures", "Focus distance set to ${focusItem.focusAt}")
-                takePicture(context, imageCapture, singleThreadExecutor)
+        // 从focusArray中取出selected为true的项，组成一个新数组
+        val selectedFocusArray = focusArray.filter { it.selected }
+        selectedFocusArray.forEach { focusItem ->
+            val captureRequestOptions = CaptureRequestOptions.Builder()
+                .setCaptureRequestOption(
+                    CaptureRequest.CONTROL_AF_MODE,
+                    CameraMetadata.CONTROL_AF_MODE_OFF
+                )
+                .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusItem.focusAt)
+                .build()
+            camera2CameraControl.setCaptureRequestOptions(captureRequestOptions)
+            Thread.sleep(1000)
+            Log.i("takePictures", "Focus distance set to ${focusItem.focusAt}")
+            // 最后一张照片取得后，通知上层界面拍照完成
+            if (focusItem == selectedFocusArray.last()) {
+                Log.i("takePictures", "Take last picture")
+                takePicture(
+                    context = context,
+                    imageCapture = imageCapture,
+                    executor = executor,
+                    setStateOfImageSaved = setStateOfLastImageSaved
+                )
+            } else {
+                Log.i("takePictures", "Take picture")
+                takePicture(
+                    context = context,
+                    imageCapture = imageCapture,
+                    executor = executor
+                )
             }
         }
     }
@@ -183,7 +217,7 @@ object Util {
      * @param minFocusDistance 最小对焦距离
      * @return 对焦距离数组
      */
-    fun initFocusArray(minFocusDistance: Float, hyperFocalDistance: Float) : Array<FocusItem>  {
+    fun initFocusArray(minFocusDistance: Float, hyperFocalDistance: Float): Array<FocusItem> {
         if (minFocusDistance == 0f) {
             return arrayOf<FocusItem>(FocusItem(0.0F, true))
         } else {

@@ -17,7 +17,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Composable
 fun Modifier.Camera() {
-    // 在这里编写您的屏幕内容
     Log.i("Camera", "Start")
     CameraPreview()
 }
@@ -25,11 +24,11 @@ fun Modifier.Camera() {
 @OptIn(ExperimentalCameraProviderConfiguration::class)
 @Composable
 private fun CameraPreview() {
-    // 在这里编写您的预览内容
+    Log.i("Camera", "CameraPreview")
     val context = LocalContext.current
     val cameraController = LifecycleCameraController(context)
     val lifecycleOwner = LocalLifecycleOwner.current
-
+    // 在这里编写您的预览内容
     AndroidView(
         factory = { context ->
             PreviewView(context).apply {
@@ -46,13 +45,13 @@ private fun CameraPreview() {
             }
         },
         onReset = {
-            Log.i("Camera", "Reset")
+            Log.i("CameraPreview", "Reset")
         },
         onRelease = {
-            Log.i("Camera", "Release")
+            Log.i("CameraPreview", "Release")
             cameraController.unbind()
         }
     ) {
-        Log.i("Camera", "Update")
+        Log.i("CameraPreview", "Update")
     }
 }
