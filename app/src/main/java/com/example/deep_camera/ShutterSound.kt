@@ -5,7 +5,7 @@ import android.media.AudioAttributes
 import android.media.SoundPool
 import androidx.media.AudioAttributesCompat
 
-class ShutterSound(private val context: Context) {
+class ShutterSound(context: Context) {
     private var soundPool: SoundPool? = null
     private var soundId: Int = 0
     init {
