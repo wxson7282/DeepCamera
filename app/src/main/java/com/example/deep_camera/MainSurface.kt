@@ -33,7 +33,8 @@ import androidx.navigation.NavController
 @Composable
 fun MainSurface(
     navController: NavController? = null,
-    sharedPreferences: SharedPreferences? = null
+    sharedPreferences: SharedPreferences? = null,
+    shutterSound: ShutterSound? = null
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -73,6 +74,7 @@ fun MainSurface(
                             context = context,
                             lifecycleOwner = lifecycleOwner,
                             focusArray = focusList,
+                            shutterSound = shutterSound,
                             // 取得最后一张照片是否保存的状态
                             setStateOfLastImageSaved = { newValue ->
                                 stateOfLastImageSaved = newValue

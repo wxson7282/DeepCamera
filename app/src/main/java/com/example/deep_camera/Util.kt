@@ -41,6 +41,7 @@ object Util {
         context: Context,
         imageCapture: ImageCapture,
         executor: java.util.concurrent.Executor,
+        shutterSound: ShutterSound? = null,
         setStateOfImageSaved: (Boolean) -> Unit = {}
     ) {
         try {
@@ -48,6 +49,7 @@ object Util {
             val photoFile = File(context.filesDir, "${System.currentTimeMillis()}.jpg")
             val outputOptions =
                 ImageCapture.OutputFileOptions.Builder(photoFile).build()
+            shutterSound?.play()
             // 执行拍照操作
             imageCapture.takePicture(
                 outputOptions, executor,
@@ -80,6 +82,7 @@ object Util {
         context: Context,
         lifecycleOwner: LifecycleOwner,
         focusArray: Array<FocusItem>,
+        shutterSound: ShutterSound? = null,
         setStateOfLastImageSaved: (Boolean) -> Unit = {}
     ) {
         val executor = Executors.newSingleThreadExecutor()
@@ -161,6 +164,7 @@ object Util {
                     context = context,
                     imageCapture = imageCapture,
                     executor = executor,
+                    shutterSound = shutterSound,
                     setStateOfImageSaved = setStateOfLastImageSaved
                 )
             } else {
@@ -168,6 +172,7 @@ object Util {
                 takePicture(
                     context = context,
                     imageCapture = imageCapture,
+                    shutterSound = shutterSound,
                     executor = executor
                 )
             }

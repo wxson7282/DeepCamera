@@ -31,10 +31,12 @@ class MainActivity : ComponentActivity() {
     private val localContext = staticCompositionLocalOf<Context> {
         error("No context provided")
     }
+    private lateinit var shutterSound: ShutterSound
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sharedPreferences = getSharedPreferences("DeepCamera", MODE_PRIVATE)
+        shutterSound = ShutterSound(this)
         if (checkSelfPermission(android.Manifest.permission.CAMERA) !=
             android.content.pm.PackageManager.PERMISSION_GRANTED) {
             requestPermissionLauncher.launch(android.Manifest.permission.CAMERA)
@@ -68,6 +70,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        shutterSound.release()
+    }
+
     private val showGrantedDialog = mutableStateOf(false)
     private val showDeniedDialog = mutableStateOf(false)
 
@@ -91,7 +98,8 @@ class MainActivity : ComponentActivity() {
             composable("main") {
                 MainSurface(
                     navController = navController,
-                    sharedPreferences = sharedPreferences
+                    sharedPreferences = sharedPreferences,
+                    shutterSound = shutterSound
                 )
             }
             composable("settings") {
