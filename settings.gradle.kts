@@ -21,4 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Deep Camera"
 include(":app")
- 
+include(":manual_camera")
