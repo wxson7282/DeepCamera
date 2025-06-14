@@ -48,8 +48,8 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Content() {
-    var stateOfZoomRatio by remember { mutableFloatStateOf(0f) }
-    var stateOfFocusDistance by remember { mutableFloatStateOf(0f) }
+    var stateOfZoomRatio by remember { mutableFloatStateOf(0.5f) }
+    var stateOfFocusDistance by remember { mutableFloatStateOf(0.5f) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -64,6 +64,9 @@ private fun Content() {
                     )
                 }
                 Column {
+                    Text(
+                        text = "Zoom Ratio: $stateOfZoomRatio",
+                    )
                     Slider(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -71,6 +74,9 @@ private fun Content() {
                             .border(2.dp, MaterialTheme.colorScheme.primary),
                         value = stateOfZoomRatio,
                         onValueChange = { stateOfZoomRatio = it }
+                    )
+                    Text(
+                        text = "Focus Distance: $stateOfFocusDistance",
                     )
                     Slider(
                         modifier = Modifier
@@ -84,7 +90,7 @@ private fun Content() {
             }
         }
     ) { innerPadding ->
-        Modifier.fillMaxSize().padding(innerPadding).CameraPreview(
+        Modifier.fillMaxWidth().padding(innerPadding).CameraPreview(
             zoomRatio = stateOfZoomRatio,
             focusDistance = stateOfFocusDistance
         )
