@@ -54,13 +54,14 @@ fun Modifier.CameraPreview(
         camera2CameraControl.setCaptureRequestOptions(captureRequestOptions)
     }
     AndroidView(
+        modifier = this,
         factory = { context ->
             PreviewView(context).apply {
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
-                scaleType = PreviewView.ScaleType.FIT_CENTER
+                scaleType = PreviewView.ScaleType.FIT_START
                 implementationMode = PreviewView.ImplementationMode.PERFORMANCE  // SurfaceView 模式
                 setBackgroundColor(Color.Gray.toArgb())
             } .also { previewView ->
