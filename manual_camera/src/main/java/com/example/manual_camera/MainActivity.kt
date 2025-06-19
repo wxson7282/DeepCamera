@@ -89,9 +89,9 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Content(context: Context) {
-    val focusDistance = Util.getMinFocusDistance(context)
+    val minFocusDistance = Util.getMinFocusDistance(context)
     var stateOfZoomRatio by remember { mutableFloatStateOf(0.5f) }
-    var stateOfFocusDistance by remember { mutableFloatStateOf(focusDistance) }
+    var stateOfFocusDistance by remember { mutableFloatStateOf(minFocusDistance) }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = { TopAppBar(title = { Text("Manual Camera Main") }) },
@@ -118,13 +118,14 @@ private fun Content(context: Context) {
                             .border(2.dp, MaterialTheme.colorScheme.primary),
                         value = stateOfFocusDistance,
                         onValueChange = { stateOfFocusDistance = it },
-                        valueRange = 0f..focusDistance
+                        valueRange = 0f..minFocusDistance
                     )
                 }
             }
         }
     ) { innerPadding ->
         Modifier.fillMaxWidth().padding(innerPadding).CameraPreview(
+            context = context,
             zoomRatio = stateOfZoomRatio,
             focusDistance = stateOfFocusDistance
         )

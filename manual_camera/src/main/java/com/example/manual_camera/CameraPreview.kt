@@ -1,5 +1,6 @@
 package com.example.manual_camera
 
+import android.content.Context
 import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
 import android.util.Log
@@ -23,36 +24,38 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 @OptIn(ExperimentalCamera2Interop::class)
 @Composable
 fun Modifier.CameraPreview(
+    context: Context,
     zoomRatio: Float,
     focusDistance: Float
 ) {
     Log.i("CameraPreview", "Start")
-    val localContext = LocalContext.current
-    val cameraController = LifecycleCameraController(localContext)
+    val cameraController = LifecycleCameraController(context)
     val lifecycleOwner = LocalLifecycleOwner.current
+    // 获取 Camera2CameraControl
+//    val camera2CameraControl = Util.getCamera2CameraControl(context, lifecycleOwner)
     // 监听缩放比例的变化
-    LaunchedEffect(zoomRatio, focusDistance) {
+    LaunchedEffect(zoomRatio) {
         // 设置新的缩放比例
         cameraController.setZoomRatio(zoomRatio)
+        Log.i("CameraPreview", "ZoomRatio: $zoomRatio")
     }
-    // 监听焦距的变化
-    LaunchedEffect(focusDistance) {
-        val cameraControl = cameraController.cameraControl
-        if (cameraControl == null) {
-            return@LaunchedEffect
-        }
-        val camera2CameraControl = Camera2CameraControl.from(cameraControl)
-        // 设置新的焦距
-        val captureRequestOptions = CaptureRequestOptions.Builder()
-            .setCaptureRequestOption(
-                CaptureRequest.CONTROL_AF_MODE,
-                CameraMetadata.CONTROL_AF_MODE_OFF)
-            .setCaptureRequestOption(
-                CaptureRequest.LENS_FOCUS_DISTANCE,
-                focusDistance)
-            .build()
-        camera2CameraControl.setCaptureRequestOptions(captureRequestOptions)
-    }
+//    // 监听焦距的变化
+//    LaunchedEffect(focusDistance) {
+//        if (camera2CameraControl == null) {
+//            Log.e("CameraPreview", "Camera2CameraControl is null")
+//            return@LaunchedEffect
+//        }
+//        val captureRequestOptions = CaptureRequestOptions.Builder()
+//            .setCaptureRequestOption(
+//                CaptureRequest.CONTROL_AF_MODE,
+//                CameraMetadata.CONTROL_AF_MODE_OFF)
+//            .setCaptureRequestOption(
+//                CaptureRequest.LENS_FOCUS_DISTANCE,
+//                focusDistance)
+//            .build()
+//        camera2CameraControl.setCaptureRequestOptions(captureRequestOptions)
+//        Log.i("CameraPreview", "FocusDistance: $focusDistance")
+//    }
     AndroidView(
         modifier = this,
         factory = { context ->

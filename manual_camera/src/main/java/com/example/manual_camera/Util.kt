@@ -1,10 +1,24 @@
 package com.example.manual_camera
 
 import android.content.Context
+import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraMetadata
+import android.hardware.camera2.CaptureFailure
+import android.hardware.camera2.CaptureRequest
+import android.hardware.camera2.CaptureResult
+import android.hardware.camera2.TotalCaptureResult
 import android.util.Log
-import kotlin.collections.contains
+import androidx.annotation.OptIn
+import androidx.camera.camera2.interop.Camera2CameraControl
+import androidx.camera.camera2.interop.Camera2Interop
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import androidx.camera.core.Camera
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.lifecycle.LifecycleOwner
+import java.util.concurrent.Executors
 
 object Util {
     fun getMinFocusDistance(context: Context): Float {
@@ -32,6 +46,71 @@ object Util {
         ) ?: 0f
         Log.i("getMinFocusDistance", "minFocusDistance: $minFocusDistance")
         return minFocusDistance
+    }
+
+    @OptIn(ExperimentalCamera2Interop::class)
+    fun getCamera2CameraControl(
+        context: Context,
+        lifecycleOwner: LifecycleOwner
+    ) : Camera2CameraControl? {
+        val imageCaptureBuilder = ImageCapture.Builder()
+        val camera2Interop = Camera2Interop.Extender<ImageCapture>(imageCaptureBuilder)
+        val cameraProvider = ProcessCameraProvider.getInstance(context).get()
+        val cameraSelector = CameraSelector.Builder()
+            .requireLensFacing(CameraSelector.LENS_FACING_BACK)
+            .build()
+        val captureCallback = object : CameraCaptureSession.CaptureCallback() {
+            override fun onCaptureStarted(
+                session: CameraCaptureSession,
+                request: CaptureRequest,
+                timestamp: Long,
+                frameNumber: Long
+            ) {
+                super.onCaptureStarted(session, request, timestamp, frameNumber)
+            }
+
+            override fun onCaptureProgressed(
+                session: CameraCaptureSession,
+                request: CaptureRequest,
+                partialResult: CaptureResult
+            ) {
+                super.onCaptureProgressed(session, request, partialResult)
+            }
+
+            override fun onCaptureCompleted(
+                session: CameraCaptureSession,
+                request: CaptureRequest,
+                result: TotalCaptureResult
+            ) {
+                super.onCaptureCompleted(session, request, result)
+            }
+
+            override fun onCaptureFailed(
+                session: CameraCaptureSession,
+                request: CaptureRequest,
+                failure: CaptureFailure
+            ) {
+                super.onCaptureFailed(session, request, failure)
+                Log.e("takePictures", "onCaptureFailed")
+            }
+        }
+        camera2Interop.setSessionCaptureCallback(captureCallback)
+        var camera: Camera? = null
+        lateinit var imageCapture: ImageCapture
+        try {
+            cameraProvider.unbindAll()
+            imageCapture = imageCaptureBuilder.build()
+            camera = cameraProvider.bindToLifecycle(
+                lifecycleOwner,
+                cameraSelector,
+                imageCapture
+            )
+        } catch (exc: Exception) {
+            Log.e("getCamera2CameraControl", "Use case binding failed", exc)
+            return null
+        }
+        val cameraControl = camera.cameraControl
+        return Camera2CameraControl.from(cameraControl)
     }
 }
 
