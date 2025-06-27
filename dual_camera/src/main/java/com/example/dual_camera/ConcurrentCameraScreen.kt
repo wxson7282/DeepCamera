@@ -9,8 +9,9 @@ import androidx.camera.core.Preview
 import androidx.camera.core.UseCaseGroup
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -18,10 +19,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Suppress("DEPRECATION")
@@ -30,8 +35,15 @@ fun ConcurrentCameraScreen() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     // 建立PreviewView
-    val frontPreviewView = remember { PreviewView(context) }
-    val backPreviewView = remember { PreviewView(context) }
+    val frontPreviewView = remember {
+        PreviewView(context).apply {
+            implementationMode = PreviewView.ImplementationMode.PERFORMANCE
+        }
+    }
+    val backPreviewView = remember {
+        PreviewView(context).apply {
+            implementationMode = PreviewView.ImplementationMode.PERFORMANCE
+        } }
     // 初始化CameraProvider的监听器
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     // 初始化CameraProvider和ConcurrentCamera
@@ -50,9 +62,9 @@ fun ConcurrentCameraScreen() {
         val frontCameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
         val backCameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
         // 创建前后摄像头的预览用例，并将其绑定到对应的PreviewView上
-        val frontPreview = Preview.Builder().setTargetResolution(Size(640, 480)).build()
+        val frontPreview = Preview.Builder().setTargetResolution(Size(480, 640)).build()
             .also { it.setSurfaceProvider(frontPreviewView.surfaceProvider) }
-        val backPreview = Preview.Builder().setTargetResolution(Size(640, 480)).build()
+        val backPreview = Preview.Builder().setTargetResolution(Size(480, 640)).build()
             .also { it.setSurfaceProvider(backPreviewView.surfaceProvider) }
         // 创建前后摄像头的配置
         val frontSingleCameraConfig = SingleCameraConfig(
@@ -83,19 +95,48 @@ fun ConcurrentCameraScreen() {
             cameraProvider.unbindAll()
         }
     }
-
-    Column(modifier = Modifier.fillMaxSize()) {
+    ConstraintLayout(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        val (frontPreviewRef, backPreviewRef, frontButtonRef, backButtonRef) = createRefs()
         AndroidView(
             factory = { frontPreviewView },
-            modifier = Modifier
-                .weight(1f)
-                .align(Alignment.CenterHorizontally)
-        )
+            modifier = Modifier.constrainAs(frontPreviewRef) {
+                top.linkTo(parent.top, margin = 110.dp)
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+            })
         AndroidView(
             factory = { backPreviewView },
-            modifier = Modifier
-                .weight(1f)
-                .align(Alignment.CenterHorizontally)
-        )
+            modifier = Modifier.constrainAs(backPreviewRef) {
+            bottom.linkTo(parent.bottom, margin = 100.dp)
+            start.linkTo(parent.start)
+            end.linkTo(parent.end)
+        })
+        IconButton(modifier = Modifier.constrainAs(frontButtonRef) {
+            top.linkTo(frontPreviewRef.top)
+            bottom.linkTo(frontPreviewRef.bottom)
+            start.linkTo(frontPreviewRef.start)
+            end.linkTo(frontPreviewRef.end)
+        }, onClick = {}) {
+            Icon(
+                imageVector = ImageVector.vectorResource(R.drawable.circle),
+                tint = Color.Unspecified,
+                contentDescription = "Shutter"
+            )
+        }
+        IconButton(modifier = Modifier.constrainAs(backButtonRef) {
+            top.linkTo(backPreviewRef.top)
+            bottom.linkTo(backPreviewRef.bottom)
+            start.linkTo(backPreviewRef.start)
+            end.linkTo(backPreviewRef.end)
+        }, onClick = {}) {
+            Icon(
+                imageVector = ImageVector.vectorResource(R.drawable.circle),
+                tint = Color.Unspecified,
+                contentDescription = "Shutter"
+            )
+        }
     }
 }
+
