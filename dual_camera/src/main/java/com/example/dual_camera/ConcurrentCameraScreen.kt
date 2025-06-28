@@ -5,6 +5,7 @@ import android.util.Size
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ConcurrentCamera
 import androidx.camera.core.ConcurrentCamera.SingleCameraConfig
+import androidx.camera.core.ImageCapture
 import androidx.camera.core.Preview
 import androidx.camera.core.UseCaseGroup
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -34,6 +35,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 fun ConcurrentCameraScreen() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    // 创建前后镜头的imageCapture用例
+    val frontImageCapture = ImageCapture.Builder().build()
+    val backImageCapture = ImageCapture.Builder().build()
     // 建立PreviewView
     val frontPreviewView = remember {
         PreviewView(context).apply {
@@ -69,12 +73,12 @@ fun ConcurrentCameraScreen() {
         // 创建前后摄像头的配置
         val frontSingleCameraConfig = SingleCameraConfig(
             frontCameraSelector,
-            UseCaseGroup.Builder().addUseCase(frontPreview).build(),
+            UseCaseGroup.Builder().addUseCase(frontPreview).addUseCase(frontImageCapture).build(),
             lifecycleOwner
         )
         val backSingleCameraConfig = SingleCameraConfig(
             backCameraSelector,
-            UseCaseGroup.Builder().addUseCase(backPreview).build(),
+            UseCaseGroup.Builder().addUseCase(backPreview).addUseCase(backImageCapture).build(),
             lifecycleOwner
         )
         try {
@@ -118,7 +122,9 @@ fun ConcurrentCameraScreen() {
             bottom.linkTo(frontPreviewRef.bottom)
             start.linkTo(frontPreviewRef.start)
             end.linkTo(frontPreviewRef.end)
-        }, onClick = {}) {
+        }, onClick = {
+            Util.takePicture(context, frontImageCapture)
+        }) {
             Icon(
                 imageVector = ImageVector.vectorResource(R.drawable.circle),
                 tint = Color.Unspecified,
@@ -130,7 +136,9 @@ fun ConcurrentCameraScreen() {
             bottom.linkTo(backPreviewRef.bottom)
             start.linkTo(backPreviewRef.start)
             end.linkTo(backPreviewRef.end)
-        }, onClick = {}) {
+        }, onClick = {
+            Util.takePicture(context, frontImageCapture)
+        }) {
             Icon(
                 imageVector = ImageVector.vectorResource(R.drawable.circle),
                 tint = Color.Unspecified,
