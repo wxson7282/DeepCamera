@@ -32,7 +32,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Suppress("DEPRECATION")
 @Composable
-fun ConcurrentCameraScreen() {
+fun ConcurrentCameraScreen(
+    shutterSound: ShutterSound? = null
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     // 创建前后镜头的imageCapture用例
@@ -66,9 +68,9 @@ fun ConcurrentCameraScreen() {
         val frontCameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
         val backCameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
         // 创建前后摄像头的预览用例，并将其绑定到对应的PreviewView上
-        val frontPreview = Preview.Builder().setTargetResolution(Size(480, 640)).build()
+        val frontPreview = Preview.Builder().setTargetResolution(Size(640, 480)).build()
             .also { it.setSurfaceProvider(frontPreviewView.surfaceProvider) }
-        val backPreview = Preview.Builder().setTargetResolution(Size(480, 640)).build()
+        val backPreview = Preview.Builder().setTargetResolution(Size(640, 480)).build()
             .also { it.setSurfaceProvider(backPreviewView.surfaceProvider) }
         // 创建前后摄像头的配置
         val frontSingleCameraConfig = SingleCameraConfig(
@@ -123,7 +125,7 @@ fun ConcurrentCameraScreen() {
             start.linkTo(frontPreviewRef.start)
             end.linkTo(frontPreviewRef.end)
         }, onClick = {
-            Util.takePicture(context, frontImageCapture)
+            Util.takePicture(context, frontImageCapture, shutterSound)
         }) {
             Icon(
                 imageVector = ImageVector.vectorResource(R.drawable.circle),
@@ -137,7 +139,7 @@ fun ConcurrentCameraScreen() {
             start.linkTo(backPreviewRef.start)
             end.linkTo(backPreviewRef.end)
         }, onClick = {
-            Util.takePicture(context, frontImageCapture)
+            Util.takePicture(context, backImageCapture, shutterSound)
         }) {
             Icon(
                 imageVector = ImageVector.vectorResource(R.drawable.circle),

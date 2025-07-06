@@ -25,8 +25,12 @@ class MainActivity : ComponentActivity() {
     private val localContext = staticCompositionLocalOf<Context> {
         error("No context provided")
     }
+    private lateinit var shutterSound: ShutterSound
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        shutterSound = ShutterSound(this)
 
         if (checkSelfPermission(android.Manifest.permission.CAMERA) !=
             PackageManager.PERMISSION_GRANTED
@@ -42,7 +46,7 @@ class MainActivity : ComponentActivity() {
                         // 检查系统是否支持并发相机
                         if (this.packageManager
                                 .hasSystemFeature(PackageManager.FEATURE_CAMERA_CONCURRENT)) {
-                            ConcurrentCameraScreen()
+                            ConcurrentCameraScreen(shutterSound = shutterSound)
                         } else {
                             Greeting(
                                 name = "并发相机",
@@ -68,6 +72,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        shutterSound.release()
     }
 
     private val showGrantedDialog = mutableStateOf(false)
