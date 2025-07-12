@@ -49,7 +49,8 @@ fun ConcurrentCameraScreen(
     val backPreviewView = remember {
         PreviewView(context).apply {
             implementationMode = PreviewView.ImplementationMode.PERFORMANCE
-        } }
+        }
+    }
     // 初始化CameraProvider的监听器
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     // 初始化CameraProvider和ConcurrentCamera
@@ -67,10 +68,10 @@ fun ConcurrentCameraScreen(
         //定义前后摄像头的选择器
         val frontCameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
         val backCameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-        // 创建前后摄像头的预览用例，并将其绑定到对应的PreviewView上
-        val frontPreview = Preview.Builder().setTargetResolution(Size(640, 480)).build()
+        // 创建前后摄像头的预览用例，并将其绑定到对应的PreviewView上，并设置分辨率，该分辨率决定了预览画面的大小。
+        val frontPreview = Preview.Builder().setTargetResolution(Size(576, 720)).build()
             .also { it.setSurfaceProvider(frontPreviewView.surfaceProvider) }
-        val backPreview = Preview.Builder().setTargetResolution(Size(640, 480)).build()
+        val backPreview = Preview.Builder().setTargetResolution(Size(576, 720)).build()
             .also { it.setSurfaceProvider(backPreviewView.surfaceProvider) }
         // 创建前后摄像头的配置
         val frontSingleCameraConfig = SingleCameraConfig(
@@ -108,24 +109,22 @@ fun ConcurrentCameraScreen(
         AndroidView(
             factory = { frontPreviewView },
             modifier = Modifier.constrainAs(frontPreviewRef) {
-                top.linkTo(parent.top, margin = 110.dp)
+                    top.linkTo(parent.top, 145.dp)
+                    start.linkTo(parent.start)
+                    end.linkTo(parent.end)
+                })
+        AndroidView(factory = { backPreviewView },
+            modifier = Modifier.constrainAs(backPreviewRef) {
+                bottom.linkTo(parent.bottom, 125.dp)
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
             })
-        AndroidView(
-            factory = { backPreviewView },
-            modifier = Modifier.constrainAs(backPreviewRef) {
-            bottom.linkTo(parent.bottom, margin = 100.dp)
-            start.linkTo(parent.start)
-            end.linkTo(parent.end)
-        })
         IconButton(modifier = Modifier.constrainAs(frontButtonRef) {
-            top.linkTo(frontPreviewRef.top)
-            bottom.linkTo(frontPreviewRef.bottom)
+            top.linkTo(frontPreviewRef.bottom, 30.dp)
             start.linkTo(frontPreviewRef.start)
             end.linkTo(frontPreviewRef.end)
         }, onClick = {
-            Util.takePicture(context, frontImageCapture, shutterSound)
+            Util.takePicture(context, frontImageCapture, shutterSound, isFront = true)
         }) {
             Icon(
                 imageVector = ImageVector.vectorResource(R.drawable.circle),
@@ -134,12 +133,11 @@ fun ConcurrentCameraScreen(
             )
         }
         IconButton(modifier = Modifier.constrainAs(backButtonRef) {
-            top.linkTo(backPreviewRef.top)
-            bottom.linkTo(backPreviewRef.bottom)
+            top.linkTo(backPreviewRef.bottom, 30.dp)
             start.linkTo(backPreviewRef.start)
             end.linkTo(backPreviewRef.end)
         }, onClick = {
-            Util.takePicture(context, backImageCapture, shutterSound)
+            Util.takePicture(context, backImageCapture, shutterSound, isFront = false)
         }) {
             Icon(
                 imageVector = ImageVector.vectorResource(R.drawable.circle),

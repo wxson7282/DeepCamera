@@ -29,7 +29,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        // 初始化快门音效
         shutterSound = ShutterSound(this)
 
         if (checkSelfPermission(android.Manifest.permission.CAMERA) !=
@@ -76,6 +76,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // 释放快门音效资源
         shutterSound.release()
     }
 

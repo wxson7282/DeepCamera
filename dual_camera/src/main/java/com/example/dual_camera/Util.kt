@@ -11,13 +11,17 @@ object Util {
     fun takePicture(
         context: Context,
         imageCapture: ImageCapture,
-        shutterSound: ShutterSound? = null
+        shutterSound: ShutterSound? = null,
+        isFront: Boolean = false
     ) {
         val executor = Executors.newSingleThreadExecutor()
-        val photoFile = File(context.filesDir, "${System.currentTimeMillis()}.jpg")
+        // 如果是前置镜头，文件名前加上"—F"后缀，否则加上"—B"后缀
+        val suffix = if (isFront) "-F" else "-B"
+        val photoFile = File(context.filesDir, "${System.currentTimeMillis()}$suffix.jpg")
         val outputOptions =
             ImageCapture.OutputFileOptions.Builder(photoFile)
                 .build()
+        // 播放快门音效
         shutterSound?.play()
         imageCapture.takePicture(
             outputOptions, executor,
