@@ -10,6 +10,9 @@ import androidx.camera.core.Preview
 import androidx.camera.core.UseCaseGroup
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -19,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Suppress("DEPRECATION")
 @Composable
@@ -37,6 +43,9 @@ fun ConcurrentCameraScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    // 定义前后按钮是否可见
+    var visibleFront by remember { mutableStateOf(true) }
+    var visibleBack by remember { mutableStateOf(true) }
     // 创建前后镜头的imageCapture用例
     val frontImageCapture = ImageCapture.Builder().build()
     val backImageCapture = ImageCapture.Builder().build()
@@ -102,29 +111,51 @@ fun ConcurrentCameraScreen(
             cameraProvider.unbindAll()
         }
     }
+    // 使用ConstraintLayout布局，将前后摄像头的预览和按钮放置在合适的位置上
     ConstraintLayout(
         modifier = Modifier.fillMaxSize()
     ) {
         val (frontPreviewRef, backPreviewRef, frontButtonRef, backButtonRef) = createRefs()
-        AndroidView(
-            factory = { frontPreviewView },
+        val scope = rememberCoroutineScope()
+        // 定义前摄像头的预览是否可见
+        AnimatedVisibility(
+            visible = visibleFront,
+            enter = scaleIn(),
+            exit = scaleOut(),
             modifier = Modifier.constrainAs(frontPreviewRef) {
-                    top.linkTo(parent.top, 145.dp)
-                    start.linkTo(parent.start)
-                    end.linkTo(parent.end)
-                })
-        AndroidView(factory = { backPreviewView },
+                top.linkTo(parent.top, 145.dp)
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+            }) {
+            AndroidView(factory = { frontPreviewView })
+        }
+        // 定义后摄像头的预览是否可见
+        AnimatedVisibility(
+            visible = visibleBack,
+            enter = scaleIn(),
+            exit = scaleOut(),
             modifier = Modifier.constrainAs(backPreviewRef) {
                 bottom.linkTo(parent.bottom, 125.dp)
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
-            })
+            }) {
+            AndroidView(factory = { backPreviewView })
+        }
+        // 定义前摄像头的按钮
         IconButton(modifier = Modifier.constrainAs(frontButtonRef) {
             top.linkTo(frontPreviewRef.bottom, 30.dp)
             start.linkTo(frontPreviewRef.start)
             end.linkTo(frontPreviewRef.end)
         }, onClick = {
+            // 点击前摄像头按钮时，将前摄像头的预览设置为不可见
+            visibleFront = false
+            // 拍照
             Util.takePicture(context, frontImageCapture, shutterSound, isFront = true)
+            scope.launch {
+                delay(300)
+                // 拍照完成后，将前摄像头的预览设置为可见
+                visibleFront = true
+            }
         }) {
             Icon(
                 imageVector = ImageVector.vectorResource(R.drawable.circle),
@@ -132,12 +163,21 @@ fun ConcurrentCameraScreen(
                 contentDescription = "Shutter"
             )
         }
+
         IconButton(modifier = Modifier.constrainAs(backButtonRef) {
             top.linkTo(backPreviewRef.bottom, 30.dp)
             start.linkTo(backPreviewRef.start)
             end.linkTo(backPreviewRef.end)
         }, onClick = {
+            // 点击后摄像头按钮时，将后摄像头的预览设置为不可见
+            visibleBack = false
+            // 拍照
             Util.takePicture(context, backImageCapture, shutterSound, isFront = false)
+            scope.launch {
+                delay(300)
+                // 拍照完成后，将后摄像头的预览设置为可见
+                visibleBack = true
+            }
         }) {
             Icon(
                 imageVector = ImageVector.vectorResource(R.drawable.circle),
