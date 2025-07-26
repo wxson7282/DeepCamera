@@ -22,7 +22,7 @@ class ShutterSound(context: Context) {
             .setAudioAttributes(audioAttributes)
             .setMaxStreams(1)
             .build()
-        soundId = soundPool?.load(context, com.example.dual_camera.R.raw.shutter_sound, 1) ?: 0
+        soundId = soundPool?.load(context, R.raw.shutter_sound, 1) ?: 0
     }
 
     fun play() {
