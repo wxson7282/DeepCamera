@@ -18,7 +18,6 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.lifecycle.LifecycleOwner
-import java.util.concurrent.Executors
 
 object Util {
     fun getMinFocusDistance(context: Context): Float {
@@ -111,6 +110,14 @@ object Util {
         }
         val cameraControl = camera.cameraControl
         return Camera2CameraControl.from(cameraControl)
+    }
+
+    fun takePicture(
+        context: Context,
+        imageCapture: ImageCapture,
+        shutterSound: ShutterSound? = null
+    ) {
+
     }
 }
 
