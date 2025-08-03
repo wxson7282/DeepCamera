@@ -58,7 +58,7 @@ fun ManualCameraScreen(shutterSound: ShutterSound? = null) {
     // 获取后置相机的最近焦距（最大值）
     val minFocusDistance = Util.getMinFocusDistance(context)
     // 焦距变量
-    var stateOfFocusDistance by remember { mutableFloatStateOf(minFocusDistance) }
+    var stateOfFocusDistance by remember { mutableFloatStateOf(0.5f) }
     // 定义previewView是否可见
     var stateOfViewIsVisible by remember { mutableStateOf(true) }
     // 建立PreviewView
