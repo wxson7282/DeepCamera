@@ -23,11 +23,13 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,8 +40,15 @@ import com.example.manual_camera.ui.theme.ManualCameraTheme
 
 class MainActivity : ComponentActivity() {
 
+    private val localContext = staticCompositionLocalOf<Context> {
+        error("No context provided")
+    }
+    private lateinit var shutterSound: ShutterSound
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        shutterSound = ShutterSound(this)
 
         if (checkSelfPermission(android.Manifest.permission.CAMERA) !=
             android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -49,24 +58,28 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            ManualCameraTheme {
-                Content(this)
-                // 显示权限授予对话框
-                if (showGrantedDialog.value) {
-                    GrantedDialog(
-                        onDismiss = { showGrantedDialog.value = false }
-                    )
-                }
-                // 显示权限拒绝对话框
-                if (showDeniedDialog.value) {
-                    DeniedDialog(
-                        onDismiss = {
-                            showDeniedDialog.value = false
-                            finish()    // 关闭应用
-                        }
-                    )
+            CompositionLocalProvider(localContext provides this) {
+                ManualCameraTheme {
+//                    Content(this)
+                    ManualCameraScreen(shutterSound)
+                    // 显示权限授予对话框
+                    if (showGrantedDialog.value) {
+                        GrantedDialog(
+                            onDismiss = { showGrantedDialog.value = false }
+                        )
+                    }
+                    // 显示权限拒绝对话框
+                    if (showDeniedDialog.value) {
+                        DeniedDialog(
+                            onDismiss = {
+                                showDeniedDialog.value = false
+                                finish()    // 关闭应用
+                            }
+                        )
+                    }
                 }
             }
+
         }
     }
 
