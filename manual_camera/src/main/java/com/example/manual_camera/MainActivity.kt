@@ -37,7 +37,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             CompositionLocalProvider(localContext provides this) {
                 ManualCameraTheme {
-//                    Content(this)
                     ManualCameraScreen(shutterSound)
                     // 显示权限授予对话框
                     if (showGrantedDialog.value) {
