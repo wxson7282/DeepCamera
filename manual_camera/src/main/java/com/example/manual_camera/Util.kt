@@ -15,6 +15,7 @@ import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.CameraControl
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
+import androidx.camera.view.CameraController
 import java.util.concurrent.Executors
 
 object Util {
@@ -45,75 +46,10 @@ object Util {
         return minFocusDistance
     }
 
-//    @OptIn(ExperimentalCamera2Interop::class)
-//    fun getCamera2CameraControl(
-//        context: Context,
-//        lifecycleOwner: LifecycleOwner
-//    ) : Camera2CameraControl? {
-//        val imageCaptureBuilder = ImageCapture.Builder()
-//        val camera2Interop = Camera2Interop.Extender<ImageCapture>(imageCaptureBuilder)
-//        val cameraProvider = ProcessCameraProvider.getInstance(context).get()
-//        val cameraSelector = CameraSelector.Builder()
-//            .requireLensFacing(CameraSelector.LENS_FACING_BACK)
-//            .build()
-//        val captureCallback = object : CameraCaptureSession.CaptureCallback() {
-//            override fun onCaptureStarted(
-//                session: CameraCaptureSession,
-//                request: CaptureRequest,
-//                timestamp: Long,
-//                frameNumber: Long
-//            ) {
-//                super.onCaptureStarted(session, request, timestamp, frameNumber)
-//            }
-//
-//            override fun onCaptureProgressed(
-//                session: CameraCaptureSession,
-//                request: CaptureRequest,
-//                partialResult: CaptureResult
-//            ) {
-//                super.onCaptureProgressed(session, request, partialResult)
-//            }
-//
-//            override fun onCaptureCompleted(
-//                session: CameraCaptureSession,
-//                request: CaptureRequest,
-//                result: TotalCaptureResult
-//            ) {
-//                super.onCaptureCompleted(session, request, result)
-//            }
-//
-//            override fun onCaptureFailed(
-//                session: CameraCaptureSession,
-//                request: CaptureRequest,
-//                failure: CaptureFailure
-//            ) {
-//                super.onCaptureFailed(session, request, failure)
-//                Log.e("takePictures", "onCaptureFailed")
-//            }
-//        }
-//        camera2Interop.setSessionCaptureCallback(captureCallback)
-//        var camera: Camera? = null
-//        lateinit var imageCapture: ImageCapture
-//        try {
-//            cameraProvider.unbindAll()
-//            imageCapture = imageCaptureBuilder.build()
-//            camera = cameraProvider.bindToLifecycle(
-//                lifecycleOwner,
-//                cameraSelector,
-//                imageCapture
-//            )
-//        } catch (exc: Exception) {
-//            Log.e("getCamera2CameraControl", "Use case binding failed", exc)
-//            return null
-//        }
-//        val cameraControl = camera.cameraControl
-//        return Camera2CameraControl.from(cameraControl)
-//    }
-
     fun takePicture(
         context: Context,
-        imageCapture: ImageCapture,
-        shutterSound: ShutterSound? = null
+        cameraController: CameraController,
+        shutterSound: ShutterSound? = null,
     ) {
         val executor = Executors.newSingleThreadExecutor()
         val contentValues = ContentValues().apply {
@@ -127,18 +63,16 @@ object Util {
             contentValues
         ).build()
         shutterSound?.play()
-        imageCapture.takePicture(
-            outputOptions, executor,
+        cameraController.takePicture(outputOptions, executor,
             object : ImageCapture.OnImageSavedCallback {
-                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                    Log.i("takePictures", "Image saved to ${outputFileResults.savedUri}")
-                }
-
-                override fun onError(exception: ImageCaptureException) {
-                    Log.e("takePictures", "Image capture failed", exception)
-                }
+            override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                Log.i("takePictures", "Image saved to ${outputFileResults.savedUri}")
             }
-        )
+
+            override fun onError(exception: ImageCaptureException) {
+                Log.e("takePictures", "Image capture failed", exception)
+            }
+        })
     }
 
     @OptIn(ExperimentalCamera2Interop::class)

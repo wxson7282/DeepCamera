@@ -21,16 +21,28 @@ class MainActivity : ComponentActivity() {
         error("No context provided")
     }
     private lateinit var shutterSound: ShutterSound
+    private val showCameraGrantedDialog = mutableStateOf(false)
+    private val showCameraDeniedDialog = mutableStateOf(false)
+    private val requestCameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // 相机权限已授予，检查写入存储权限
+            showCameraGrantedDialog.value = true
+        } else {
+            // 权限被拒绝，可提示用户
+            showCameraDeniedDialog.value = true
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         shutterSound = ShutterSound(this)
 
-        if (checkSelfPermission(android.Manifest.permission.CAMERA) !=
-            android.content.pm.PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+        if (checkSelfPermission(android.Manifest.permission.CAMERA)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestCameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
         }
 
         enableEdgeToEdge()
@@ -38,39 +50,21 @@ class MainActivity : ComponentActivity() {
             CompositionLocalProvider(localContext provides this) {
                 ManualCameraTheme {
                     ManualCameraScreen(shutterSound)
-                    // 显示权限授予对话框
-                    if (showGrantedDialog.value) {
+                    // 显示相机权限授予对话框
+                    if (showCameraGrantedDialog.value) {
                         GrantedDialog(
-                            onDismiss = { showGrantedDialog.value = false }
-                        )
+                            onDismiss = { showCameraGrantedDialog.value = false })
                     }
-                    // 显示权限拒绝对话框
-                    if (showDeniedDialog.value) {
+                    // 显示相机权限拒绝对话框
+                    if (showCameraDeniedDialog.value) {
                         DeniedDialog(
                             onDismiss = {
-                                showDeniedDialog.value = false
+                                showCameraDeniedDialog.value = false
                                 finish()    // 关闭应用
-                            }
-                        )
+                            })
                     }
                 }
             }
-
-        }
-    }
-
-    private val showGrantedDialog = mutableStateOf(false)
-    private val showDeniedDialog = mutableStateOf(false)
-
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            // 权限已授予，可执行相关操作
-            showGrantedDialog.value = true
-        } else {
-            // 权限被拒绝，可提示用户
-            showDeniedDialog.value = true
         }
     }
 }
@@ -85,8 +79,7 @@ private fun GrantedDialog(onDismiss: () -> Unit) {
             Button(onClick = onDismiss) {
                 Text("确定")
             }
-        }
-    )
+        })
 }
 
 @Composable
@@ -99,7 +92,5 @@ private fun DeniedDialog(onDismiss: () -> Unit) {
             Button(onClick = onDismiss) {
                 Text("确定")
             }
-        }
-    )
+        })
 }
-

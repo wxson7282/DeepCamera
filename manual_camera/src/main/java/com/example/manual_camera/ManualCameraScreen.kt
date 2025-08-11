@@ -2,16 +2,9 @@ package com.example.manual_camera
 
 import android.util.Log
 import android.util.Size
-import androidx.camera.core.AspectRatio
-import androidx.camera.core.Camera
+import android.widget.LinearLayout
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageCapture
-import androidx.camera.core.Preview
-import androidx.camera.core.UseCaseGroup
-import androidx.camera.core.resolutionselector.AspectRatioStrategy
-import androidx.camera.core.resolutionselector.ResolutionSelector
-import androidx.camera.core.resolutionselector.ResolutionStrategy
-import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
@@ -27,7 +20,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
@@ -43,7 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.example.manual_camera.Util.changeFocusDistance
 import com.example.manual_camera.Util.takePicture
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -52,9 +44,10 @@ import kotlinx.coroutines.launch
 fun ManualCameraScreen(shutterSound: ShutterSound? = null) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var camera: Camera? = null
     // 定义cameraController以实现cameraX的大多数功能
     val cameraController = LifecycleCameraController(context)
+    // 设定后置镜头
+    cameraController.cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
     // 获取后置相机的最近焦距（最大值）
     val minFocusDistance = Util.getMinFocusDistance(context)
     // 焦距变量
@@ -64,71 +57,30 @@ fun ManualCameraScreen(shutterSound: ShutterSound? = null) {
     // 建立PreviewView
     val previewView = remember {
         PreviewView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(720, 1280)
+            scaleType = PreviewView.ScaleType.FIT_CENTER
             implementationMode = PreviewView.ImplementationMode.PERFORMANCE
+            setBackgroundColor(Color.Gray.toArgb())
         }
-    }
-    // 为previewView设置cameraController
-    previewView.controller = cameraController
-    // 初始化CameraProvider的监听器
-    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
-    // 初始化imageCapture用例
-    var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
-
-    // 初始化CameraProvider
-    var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
-
-    // 异步处理
-    LaunchedEffect(cameraProviderFuture) {
-        // 监听CameraProvider的变化，从监听器中获取CameraProvider实例
-        cameraProvider = cameraProviderFuture.get()
     }
 
     // 预处理和收尾处理
-    DisposableEffect(lifecycleOwner, cameraProvider) {
-        val provider = cameraProvider ?: return@DisposableEffect onDispose {}
-        // 设定后置镜头
-        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-        // 设定长宽比
-        val aspectRatioStrategy = AspectRatioStrategy(
-            AspectRatio.RATIO_16_9, AspectRatioStrategy.FALLBACK_RULE_AUTO
-        )
-        // 设定preview分辨率
-        val previewResolutionStrategy = ResolutionStrategy(
-            Size(1080, 1920), ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER
-        )
-        // 设定preview分辨率选择器
-        val previewResolutionSelector =
-            ResolutionSelector.Builder().setAspectRatioStrategy(aspectRatioStrategy)
-                .setResolutionStrategy(previewResolutionStrategy).build()
-        // 设定预览(UseCase)
-        val preview = Preview.Builder().setResolutionSelector(previewResolutionSelector).build()
-        // 设定SurfaceProvider
-        preview.setSurfaceProvider(previewView.surfaceProvider)
+    DisposableEffect(lifecycleOwner, cameraController) {
         // 设定照片分辨率
-        val imageCaptureResolutionStrategy = ResolutionStrategy(
-            Size(2160, 3840), ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER
-        )
-        // 设定照片分辨率选择器
-        val imageCaptureResolutionSelector =
-            ResolutionSelector.Builder().setAspectRatioStrategy(aspectRatioStrategy)
-                .setResolutionStrategy(imageCaptureResolutionStrategy).build()
-        // 创建imageCapture用例(UseCase)
-        imageCapture =
-            ImageCapture.Builder().setResolutionSelector(imageCaptureResolutionSelector).build()
-        //  创建UseCaseGroup
-        val useCaseGroup =
-            UseCaseGroup.Builder().addUseCase(preview).addUseCase(imageCapture!!).build()
+        cameraController.imageCaptureTargetSize = CameraController.OutputSize(Size(2160, 3840))
         try {
-            // 解绑All
-            provider.unbindAll()
-            // 绑定UseCaseGroup
-            camera = provider.bindToLifecycle(lifecycleOwner, cameraSelector, useCaseGroup)
+            // 解绑
+            cameraController.unbind()
+            // 绑定lifecycleOwner
+            cameraController.bindToLifecycle(lifecycleOwner)
+            // 为previewView设置cameraController
+            previewView.controller = cameraController
         } catch (e: Exception) {
             Log.e("ManualCameraScreen", "Failed to bind cameras", e)
             e.printStackTrace()
         }
         onDispose {
-            provider.unbindAll()
+            cameraController.unbind()
         }
     }
     ConstraintLayout(
@@ -142,7 +94,7 @@ fun ManualCameraScreen(shutterSound: ShutterSound? = null) {
             enter = scaleIn(),
             exit = scaleOut(),
             modifier = Modifier.constrainAs(previewRef) {
-                top.linkTo(parent.top, 10.dp)
+                top.linkTo(parent.top)
                 bottom.linkTo(parent.bottom)
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
@@ -164,8 +116,8 @@ fun ManualCameraScreen(shutterSound: ShutterSound? = null) {
                 valueRange = 0f..minFocusDistance,
                 onValueChangeFinished = {
                     // 当slider值改变完成时，将slider的值设置为cameraController的focusDistance
-                    camera?.let {
-                        changeFocusDistance(it.cameraControl, stateOfFocusDistance)
+                    cameraController.cameraControl?.let {
+                        Util.changeFocusDistance(it, stateOfFocusDistance)
                     }
                 })
         }
@@ -178,7 +130,8 @@ fun ManualCameraScreen(shutterSound: ShutterSound? = null) {
             // 点击拍照按钮时，将前摄像头的预览设置为不可见
             stateOfViewIsVisible = false
             // 拍照
-            takePicture(context, imageCapture!!, shutterSound)
+            takePicture(context, cameraController, shutterSound)
+
             scope.launch {
                 delay(300)
                 // 拍照完成后，将预览设置为可见
