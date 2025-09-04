@@ -1,6 +1,7 @@
 package com.example.deep_camera
 
 import android.annotation.SuppressLint
+import android.content.ContentValues
 import android.content.Context
 import android.content.SharedPreferences
 import android.hardware.camera2.CameraCaptureSession
@@ -10,22 +11,33 @@ import android.hardware.camera2.CaptureFailure
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.CaptureResult
 import android.hardware.camera2.TotalCaptureResult
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
+import android.util.Size
 import androidx.annotation.OptIn
 import androidx.camera.camera2.interop.Camera2CameraControl
 import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
-import androidx.camera.core.ImageCapture.OnImageSavedCallback
 import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
+import androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.edit
 import androidx.lifecycle.LifecycleOwner
 import com.google.gson.Gson
-import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 
 object Util {
@@ -35,33 +47,29 @@ object Util {
      * @param context 上下文
      * @param imageCapture 图片捕获器
      * @param executor 执行器
-     * @param setStateOfImageSaved 拍照完成后回调函数，用于通知上层界面拍照完成
+     * @param shutterSound 快门音效
      */
-    fun takePicture(
+    private fun takePicture(
         context: Context,
         imageCapture: ImageCapture,
         executor: java.util.concurrent.Executor,
-        shutterSound: ShutterSound? = null,
-        setStateOfImageSaved: (Boolean) -> Unit = {}
+        shutterSound: ShutterSound? = null
     ) {
+        // 取得OutputFileOptions
+        val outputFileOptions = getOutputFileOptions(context)
         try {
-            // 创建一个临时文件来保存图片
-            val photoFile = File(context.filesDir, "${System.currentTimeMillis()}.jpg")
-            val outputOptions =
-                ImageCapture.OutputFileOptions.Builder(photoFile).build()
             shutterSound?.play()
-            // 执行拍照操作
             imageCapture.takePicture(
-                outputOptions, executor,
-                object : OnImageSavedCallback {
-                    @SuppressLint("RestrictedApi", "VisibleForTests")
+                outputFileOptions, executor, object : ImageCapture.OnImageSavedCallback {
                     override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                        Log.i("takePictures", "Image saved to ${photoFile.absolutePath}")
-                        setStateOfImageSaved(true)
+                        Log.i("takePictures", "Image saved to ${outputFileResults.savedUri}")
+//                        setStateOfImageSaved(true)
                     }
 
                     override fun onError(exception: ImageCaptureException) {
                         Log.e("takePictures", "Image capture failed", exception)
+//                        setStateOfImageSaved(false)
+                        exception.printStackTrace()
                     }
                 })
         } catch (exc: Exception) {
@@ -89,9 +97,8 @@ object Util {
         val imageCaptureBuilder = ImageCapture.Builder()
         val camera2Interop = Camera2Interop.Extender<ImageCapture>(imageCaptureBuilder)
         val cameraProvider = ProcessCameraProvider.getInstance(context).get()
-        val cameraSelector = CameraSelector.Builder()
-            .requireLensFacing(CameraSelector.LENS_FACING_BACK)
-            .build()
+        val cameraSelector =
+            CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build()
         val captureCallback = object : CameraCaptureSession.CaptureCallback() {
             override fun onCaptureStarted(
                 session: CameraCaptureSession,
@@ -103,25 +110,19 @@ object Util {
             }
 
             override fun onCaptureProgressed(
-                session: CameraCaptureSession,
-                request: CaptureRequest,
-                partialResult: CaptureResult
+                session: CameraCaptureSession, request: CaptureRequest, partialResult: CaptureResult
             ) {
                 super.onCaptureProgressed(session, request, partialResult)
             }
 
             override fun onCaptureCompleted(
-                session: CameraCaptureSession,
-                request: CaptureRequest,
-                result: TotalCaptureResult
+                session: CameraCaptureSession, request: CaptureRequest, result: TotalCaptureResult
             ) {
                 super.onCaptureCompleted(session, request, result)
             }
 
             override fun onCaptureFailed(
-                session: CameraCaptureSession,
-                request: CaptureRequest,
-                failure: CaptureFailure
+                session: CameraCaptureSession, request: CaptureRequest, failure: CaptureFailure
             ) {
                 super.onCaptureFailed(session, request, failure)
                 Log.e("takePictures", "onCaptureFailed")
@@ -134,9 +135,7 @@ object Util {
             cameraProvider.unbindAll()
             imageCapture = imageCaptureBuilder.build()
             camera = cameraProvider.bindToLifecycle(
-                lifecycleOwner,
-                cameraSelector,
-                imageCapture
+                lifecycleOwner, cameraSelector, imageCapture
             )
         } catch (exc: Exception) {
             Log.e("takePictures", "Use case binding failed", exc)
@@ -147,13 +146,7 @@ object Util {
         // 从focusArray中取出selected为true的项，组成一个新数组
         val selectedFocusArray = focusArray.filter { it.selected }
         selectedFocusArray.forEach { focusItem ->
-            val captureRequestOptions = CaptureRequestOptions.Builder()
-                .setCaptureRequestOption(
-                    CaptureRequest.CONTROL_AF_MODE,
-                    CameraMetadata.CONTROL_AF_MODE_OFF
-                )
-                .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusItem.focusAt)
-                .build()
+            val captureRequestOptions = getCaptureRequestOptions(focusItem.focusAt)
             camera2CameraControl.setCaptureRequestOptions(captureRequestOptions)
             Thread.sleep(1000)
             Log.i("takePictures", "Focus distance set to ${focusItem.focusAt}")
@@ -164,8 +157,7 @@ object Util {
                     context = context,
                     imageCapture = imageCapture,
                     executor = executor,
-                    shutterSound = shutterSound,
-                    setStateOfImageSaved = setStateOfLastImageSaved
+                    shutterSound = shutterSound
                 )
             } else {
                 Log.i("takePictures", "Take picture")
@@ -179,14 +171,52 @@ object Util {
         }
     }
 
+    fun takePictures(
+        context: Context,
+        imageCapture: ImageCapture,
+        camera: Camera,
+        shutterSound: ShutterSound? = null,
+        focusArray: Array<FocusItem>
+    ) {
+        val cameraControl = camera.cameraControl
+        val executor = Executors.newSingleThreadExecutor()
+        focusArray.forEach { focusItem ->
+            val further = cameraControl.setLinearZoom(focusItem.focusAt)
+            further.addListener({
+                if (further.isCancelled) {
+                    Log.e("takePictures", "setLinearZoom operation was cancelled")
+                } else if (further.isDone) {
+                    try {
+                        further.get()
+                        Log.i("takePictures", "setLinearZoom operation completed successfully")
+                        takePicture(
+                            context = context,
+                            imageCapture = imageCapture,
+                            executor = executor,
+                            shutterSound = shutterSound
+                        )
+                        // 等待1秒
+                        CoroutineScope(Dispatchers.Main).launch {
+                            delay(1000)
+                            // 这里可以添加延时后要执行的代码
+                        }
+                    } catch (e: Exception) {
+                        Log.e("takePictures", "setLinearZoom operation failed", e)
+                        e.printStackTrace()
+                    }
+                }
+            }, Runnable::run)
+        }
+    }
+
     /**
      * 获取相机的对焦范围
      * @param context 上下文
      * @return 对焦范围
      */
     fun getFocusDistance(context: Context): FocusDistance {
-        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE)
-                as android.hardware.camera2.CameraManager
+        val cameraManager =
+            context.getSystemService(Context.CAMERA_SERVICE) as android.hardware.camera2.CameraManager
         val cameraId = cameraManager.cameraIdList.firstOrNull {
             val characteristics = cameraManager.getCameraCharacteristics(it)
             characteristics.get(CameraCharacteristics.LENS_FACING) == CameraMetadata.LENS_FACING_BACK
@@ -204,14 +234,12 @@ object Util {
         }
         // 获取焦点范围
         val minFocusDistance = characteristic.get(
-            CameraCharacteristics
-                .LENS_INFO_MINIMUM_FOCUS_DISTANCE
+            CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE
         ) ?: 0f
         Log.i("getMinFocusDistance", "minFocusDistance: $minFocusDistance")
         // 获取超焦距
         val hyperFocalDistance = characteristic.get(
-            CameraCharacteristics
-                .LENS_INFO_HYPERFOCAL_DISTANCE
+            CameraCharacteristics.LENS_INFO_HYPERFOCAL_DISTANCE
         ) ?: 0f
         Log.i("getMinFocusDistance", "hyperFocalDistance: $hyperFocalDistance")
         return FocusDistance(minFocusDistance, hyperFocalDistance)
@@ -261,4 +289,62 @@ object Util {
         sharedPreferences.edit { putString("focusArray", json) }
     }
 
+    /**
+     * 获取Preview
+     * @return Preview
+     */
+    fun getPreview(): Preview {
+        // 定义ResolutionStrategy
+        val resolutionStrategy = ResolutionStrategy(Size(1920, 1080), FALLBACK_RULE_CLOSEST_LOWER)
+        // 定义AspectRatioStrategy
+        val aspectRatioStrategy =
+            AspectRatioStrategy(AspectRatio.RATIO_16_9, AspectRatioStrategy.FALLBACK_RULE_AUTO)
+        // 定义ResolutionSelector
+        val resolutionSelector =
+            ResolutionSelector.Builder().setAspectRatioStrategy(aspectRatioStrategy)
+                .setResolutionStrategy(resolutionStrategy).build()
+        // 定义Preview
+        return Preview.Builder().setResolutionSelector(resolutionSelector).build()
+    }
+
+    /**
+     * 获取ImageCapture
+     * @return ImageCapture
+     */
+    fun getImageCapture(): ImageCapture {
+        // 定义ResolutionStrategy
+        val resolutionStrategy = ResolutionStrategy(Size(1920, 1080), FALLBACK_RULE_CLOSEST_LOWER)
+        // 定义AspectRatioStrategy
+        val aspectRatioStrategy =
+            AspectRatioStrategy(AspectRatio.RATIO_16_9, AspectRatioStrategy.FALLBACK_RULE_AUTO)
+        // 定义ResolutionSelector
+        val resolutionSelector =
+            ResolutionSelector.Builder().setAspectRatioStrategy(aspectRatioStrategy)
+                .setResolutionStrategy(resolutionStrategy).build()
+        return ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .setResolutionSelector(resolutionSelector).build()
+    }
+
+    /**
+     * 获取ImageCapture的输出文件选项
+     * @param context 上下文
+     * @return ImageCapture.OutputFileOptions
+     */
+    private fun getOutputFileOptions(context: Context): ImageCapture.OutputFileOptions {
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, "${System.currentTimeMillis()}.jpg")
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
+        }
+        return ImageCapture.OutputFileOptions.Builder(
+            context.contentResolver, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues
+        ).build()
+    }
+
+    @OptIn(ExperimentalCamera2Interop::class)
+    private fun getCaptureRequestOptions(focusAt: Float): CaptureRequestOptions {
+        return CaptureRequestOptions.Builder().setCaptureRequestOption(
+                CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_OFF
+            ).setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusAt).build()
+    }
 }

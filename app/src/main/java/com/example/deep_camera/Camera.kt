@@ -8,22 +8,15 @@ import androidx.camera.lifecycle.ExperimentalCameraProviderConfiguration
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
-@Composable
-fun Modifier.Camera() {
-    Log.i("Camera", "Start")
-    CameraPreview()
-}
-
 @OptIn(ExperimentalCameraProviderConfiguration::class)
 @Composable
-private fun CameraPreview() {
+fun CameraPreview() {
     Log.i("Camera", "CameraPreview")
     val context = LocalContext.current
     val cameraController = LifecycleCameraController(context)

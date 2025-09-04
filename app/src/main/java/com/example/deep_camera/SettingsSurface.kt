@@ -1,10 +1,6 @@
 package com.example.deep_camera
 
-import android.content.Context
 import android.content.SharedPreferences
-import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CameraMetadata
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -35,11 +31,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.content.edit
 import androidx.navigation.NavController
-import com.google.gson.Gson
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -169,12 +162,6 @@ fun SettingsSurface(
             }
         )
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun SettingSurfacePreview() {
-    SettingsSurface()
 }
 
 val defaultFocusArray = arrayOf<FocusItem>(
