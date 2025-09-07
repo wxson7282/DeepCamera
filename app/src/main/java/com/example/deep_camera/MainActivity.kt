@@ -15,9 +15,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
@@ -112,25 +110,9 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun InitFocusDistanceList() {
-        val focusDistance = Util.getFocusDistance(this)
-        val mutableStateFocusList = remember {
-            mutableStateListOf<FocusItem>(
-                *(Util.loadFocusArray(sharedPreferences) ?: defaultFocusArray)
-            )
-        }
-        // 检查mutableStateFocusList中的最大值和最小值
-        val maxValue = mutableStateFocusList.maxOf { it.focusAt }
-        val minValue = mutableStateFocusList.minOf { it.focusAt }
-        // 如果maxValue或minValue与focusDistance不同，则更新mutableStateFocusList
-        if (maxValue != focusDistance.minFocusDistance ||
-            minValue!= focusDistance.hyperFocalDistance) {
-            mutableStateFocusList.clear()
-            mutableStateFocusList.addAll(
-                Util.initFocusArray(focusDistance.minFocusDistance,
-                    focusDistance.hyperFocalDistance))
-            sharedPreferences.let {
-                Util.saveFocusArray(it, mutableStateFocusList.toTypedArray())
-            }
+        // 初始化焦点距离列表
+        if (Util.loadFocusArray(sharedPreferences) == null) {
+            Util.saveFocusArray(sharedPreferences, defaultFocusArray)
         }
     }
 }
