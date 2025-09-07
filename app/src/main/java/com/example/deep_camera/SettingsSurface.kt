@@ -42,7 +42,7 @@ fun SettingsSurface(
 ) {
     val openDialog = remember { mutableStateOf(false) }
     val mutableStateFocusList = remember {
-        mutableStateListOf<FocusItem>(
+        mutableStateListOf(
             *(if (sharedPreferences != null) {
                 Util.loadFocusArray(sharedPreferences) ?: defaultFocusArray
             } else {
@@ -113,7 +113,7 @@ fun SettingsSurface(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            mutableStateFocusList.forEach { item ->
+            mutableStateFocusList.withIndex().forEach { (index, item) ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -122,28 +122,36 @@ fun SettingsSurface(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    val textState = remember {mutableStateOf(item.focusAt.toString())}
+                    val stateFocusAt = remember {mutableStateOf(item.focusAt.toString())}
                     OutlinedTextField(
                         modifier = Modifier.padding(2.dp),
-                        value = textState.value,
+                        value = stateFocusAt.value,
                         onValueChange = { newValue ->
+                            // 如果是第一个index则不允许修改
+                            if (index == 0) {
+                                return@OutlinedTextField
+                            }
+                            // 如果是最后一个index则不允许修改
+                            if (index == mutableStateFocusList.size - 1) {
+                                return@OutlinedTextField
+                            }
                             if (!checkFocusDistance(newValue.toFloatOrNull()?: 0.0F)) {
                                 // 弹出对话框提示用户输入不合法
                                 openDialog.value = true
                                 // 不合法的输入，不更新状态
                                 return@OutlinedTextField
                             } else {
-                                textState.value = newValue
+                                stateFocusAt.value = newValue
                                 item.focusAt = newValue.toFloatOrNull() ?: 0.0F
                             }
 
                         }
                     )
-                    val checkedState = remember {mutableStateOf(item.selected)}
+                    val stateOfSelect = remember {mutableStateOf(item.selected)}
                     Checkbox(
-                        checked = checkedState.value,
+                        checked = stateOfSelect.value,
                         onCheckedChange = { newValue ->
-                            checkedState.value = newValue
+                            stateOfSelect.value = newValue
                             item.selected = newValue
                         })
                 }
@@ -164,7 +172,7 @@ fun SettingsSurface(
     }
 }
 
-val defaultFocusArray = arrayOf<FocusItem>(
+val defaultFocusArray = arrayOf(
     FocusItem(1.0F, true),
     FocusItem(0.8f, true),
     FocusItem(0.6f, true),
@@ -184,6 +192,5 @@ private fun navigateToMain(navController: NavController?) {
 
 //焦点距离合规性检查
 private fun checkFocusDistance(focusDistance: Float): Boolean {
-//    return focusDistance >= 0.0f && focusDistance <= 1.0f
-    return focusDistance >= 0.0f && focusDistance <= 15.0f
+    return focusDistance >= 0.0f && focusDistance <= 1.0f
 }
