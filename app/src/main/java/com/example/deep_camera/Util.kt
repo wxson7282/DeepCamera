@@ -9,7 +9,6 @@ import android.util.Log
 import android.util.Size
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
-import androidx.camera.core.CameraControl
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
@@ -24,7 +23,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 object Util {
@@ -62,6 +60,14 @@ object Util {
         }
     }
 
+    /**
+     * 拍照
+     * @param context 上下文
+     * @param imageCapture 图片捕获器
+     * @param camera 相机
+     * @param shutterSound 快门音效
+     * @param focusArray 对焦距离数组
+     */
     fun takePictures(
         context: Context,
         imageCapture: ImageCapture,
@@ -71,61 +77,31 @@ object Util {
     ) {
         val cameraControl = camera.cameraControl
         val executorService = Executors.newSingleThreadExecutor()
-        // 使用协程和递归实现顺序执行
+        // 协程作用域内使用 for 循环顺序处理所有对焦项
         CoroutineScope(Dispatchers.Main).launch {
-            processFocusItemsSequentially(
-                context, imageCapture, cameraControl, executorService,
-                shutterSound, focusArray, 0
-            )        }
-    }
-
-    private suspend fun processFocusItemsSequentially(
-        context: Context,
-        imageCapture: ImageCapture,
-        cameraControl: CameraControl,
-        executorService: ExecutorService,
-        shutterSound: ShutterSound?,
-        focusArray: Array<FocusItem>,
-        index: Int
-    ) {
-        if (index >= focusArray.size) {
-            // 所有对焦项处理完成
-            executorService.shutdown() // 关闭执行器
-            return
-        }
-        val focusItem = focusArray[index]
-        if (focusItem.selected) {
-            val listenableFuture = cameraControl.setLinearZoom(focusItem.focusAt)
-            // 等待异步操作完成
-            try {
-                // 等待异步操作完成
-                listenableFuture.await()
-            } catch (e: Exception) {
-                Log.e("takePictures", "setLinearZoom operation failed", e)
-                e.printStackTrace()
+            for (focusItem in focusArray) {
+                if (focusItem.selected) {
+                    try {
+                        // 等待动作完成
+                        cameraControl.setLinearZoom(focusItem.focusAt).await()
+                        Log.i("takePictures", "setLinearZoom completed for focus: ${focusItem.focusAt}")
+                        // 拍照
+                        takePicture(
+                            context = context,
+                            imageCapture = imageCapture,
+                            executor = executorService,
+                            shutterSound = shutterSound
+                        )
+                        // 等待1秒确保拍照完成
+                        delay(1000)
+                    } catch (e: Exception) {
+                        Log.e("takePictures", "operation failed", e)
+                        e.printStackTrace()
+                    }
+                }
             }
-
-            try{
-                takePicture(
-                    context = context,
-                    imageCapture = imageCapture,
-                    executor = executorService,
-                    shutterSound = shutterSound
-                )
-
-                // 等待1秒确保拍照完成
-                delay(1000)
-
-            }catch (e: Exception) {
-                Log.e("takePictures", "takePicture operation failed", e)
-                e.printStackTrace()
-            }
+            executorService.shutdown()
         }
-        // 递归处理下一个对焦项
-        processFocusItemsSequentially(
-            context, imageCapture, cameraControl, executorService,
-            shutterSound, focusArray, index + 1
-        )
     }
 
     /**
@@ -199,11 +175,4 @@ object Util {
             context.contentResolver, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues
         ).build()
     }
-
-//    @OptIn(ExperimentalCamera2Interop::class)
-//    private fun getCaptureRequestOptions(focusAt: Float): CaptureRequestOptions {
-//        return CaptureRequestOptions.Builder().setCaptureRequestOption(
-//                CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_OFF
-//            ).setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusAt).build()
-//    }
 }
