@@ -9,6 +9,7 @@ import android.util.Log
 import android.util.Size
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
+import androidx.camera.core.CameraControl
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
@@ -16,12 +17,14 @@ import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER
+import androidx.concurrent.futures.await
 import androidx.core.content.edit
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 object Util {
@@ -47,12 +50,10 @@ object Util {
                 outputFileOptions, executor, object : ImageCapture.OnImageSavedCallback {
                     override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                         Log.i("takePictures", "Image saved to ${outputFileResults.savedUri}")
-//                        setStateOfImageSaved(true)
                     }
 
                     override fun onError(exception: ImageCaptureException) {
                         Log.e("takePictures", "Image capture failed", exception)
-//                        setStateOfImageSaved(false)
                         exception.printStackTrace()
                     }
                 })
@@ -69,34 +70,62 @@ object Util {
         focusArray: Array<FocusItem>
     ) {
         val cameraControl = camera.cameraControl
-        val executor = Executors.newSingleThreadExecutor()
-        focusArray.forEach { focusItem ->
-            val further = cameraControl.setLinearZoom(focusItem.focusAt)
-            further.addListener({
-                if (further.isCancelled) {
-                    Log.e("takePictures", "setLinearZoom operation was cancelled")
-                } else if (further.isDone) {
-                    try {
-                        further.get()
-                        Log.i("takePictures", "setLinearZoom operation completed successfully")
-                        takePicture(
-                            context = context,
-                            imageCapture = imageCapture,
-                            executor = executor,
-                            shutterSound = shutterSound
-                        )
-                        // 等待1秒
-                        CoroutineScope(Dispatchers.Main).launch {
-                            delay(1000)
-                            // 这里可以添加延时后要执行的代码
-                        }
-                    } catch (e: Exception) {
-                        Log.e("takePictures", "setLinearZoom operation failed", e)
-                        e.printStackTrace()
-                    }
-                }
-            }, Runnable::run)
+        val executorService = Executors.newSingleThreadExecutor()
+        // 使用协程和递归实现顺序执行
+        CoroutineScope(Dispatchers.Main).launch {
+            processFocusItemsSequentially(
+                context, imageCapture, cameraControl, executorService,
+                shutterSound, focusArray, 0
+            )        }
+    }
+
+    private suspend fun processFocusItemsSequentially(
+        context: Context,
+        imageCapture: ImageCapture,
+        cameraControl: CameraControl,
+        executorService: ExecutorService,
+        shutterSound: ShutterSound?,
+        focusArray: Array<FocusItem>,
+        index: Int
+    ) {
+        if (index >= focusArray.size) {
+            // 所有对焦项处理完成
+            executorService.shutdown() // 关闭执行器
+            return
         }
+        val focusItem = focusArray[index]
+        if (focusItem.selected) {
+            val listenableFuture = cameraControl.setLinearZoom(focusItem.focusAt)
+            // 等待异步操作完成
+            try {
+                // 等待异步操作完成
+                listenableFuture.await()
+            } catch (e: Exception) {
+                Log.e("takePictures", "setLinearZoom operation failed", e)
+                e.printStackTrace()
+            }
+
+            try{
+                takePicture(
+                    context = context,
+                    imageCapture = imageCapture,
+                    executor = executorService,
+                    shutterSound = shutterSound
+                )
+
+                // 等待1秒确保拍照完成
+                delay(1000)
+
+            }catch (e: Exception) {
+                Log.e("takePictures", "takePicture operation failed", e)
+                e.printStackTrace()
+            }
+        }
+        // 递归处理下一个对焦项
+        processFocusItemsSequentially(
+            context, imageCapture, cameraControl, executorService,
+            shutterSound, focusArray, index + 1
+        )
     }
 
     /**
