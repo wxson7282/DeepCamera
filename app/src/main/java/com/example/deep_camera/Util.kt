@@ -3,12 +3,18 @@ package com.example.deep_camera
 import android.content.ContentValues
 import android.content.Context
 import android.content.SharedPreferences
+import android.hardware.camera2.CaptureRequest
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import android.util.Size
+import androidx.annotation.OptIn
+import androidx.camera.camera2.interop.Camera2CameraControl
+import androidx.camera.camera2.interop.CaptureRequestOptions
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
+import androidx.camera.core.CameraControl
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
@@ -18,6 +24,7 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER
 import androidx.concurrent.futures.await
 import androidx.core.content.edit
+import com.google.common.util.concurrent.ListenableFuture
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -82,9 +89,12 @@ object Util {
             for (focusItem in focusArray) {
                 if (focusItem.selected) {
                     try {
-                        // 等待动作完成
-                        cameraControl.setLinearZoom(focusItem.focusAt).await()
-                        Log.i("takePictures", "setLinearZoom completed for focus: ${focusItem.focusAt}")
+                        //  设置焦距，等待完成
+                        setFocusDistance(cameraControl, focusItem.focusAt).await()
+                        Log.i(
+                            "takePictures",
+                            "setLinearZoom completed for focus: ${focusItem.focusAt}"
+                        )
                         // 拍照
                         takePicture(
                             context = context,
@@ -128,6 +138,7 @@ object Util {
      * 获取Preview
      * @return Preview
      */
+    @OptIn(ExperimentalCamera2Interop::class)
     fun getPreview(): Preview {
         // 定义ResolutionStrategy
         val resolutionStrategy = ResolutionStrategy(Size(1920, 1080), FALLBACK_RULE_CLOSEST_LOWER)
@@ -139,6 +150,15 @@ object Util {
             ResolutionSelector.Builder().setAspectRatioStrategy(aspectRatioStrategy)
                 .setResolutionStrategy(resolutionStrategy).build()
         // 定义Preview
+//        return Preview.Builder().apply {
+//            Camera2Interop.Extender(this).apply {
+//                // 设置对焦模式为手动
+//                setCaptureRequestOption(
+//                    CaptureRequest.CONTROL_AF_MODE,
+//                    CaptureRequest.CONTROL_AF_MODE_OFF
+//                )
+//            }
+//        }.setResolutionSelector(resolutionSelector).build()
         return Preview.Builder().setResolutionSelector(resolutionSelector).build()
     }
 
@@ -174,5 +194,15 @@ object Util {
         return ImageCapture.OutputFileOptions.Builder(
             context.contentResolver, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues
         ).build()
+    }
+
+    @OptIn(ExperimentalCamera2Interop::class)
+    private fun setFocusDistance(cameraControl: CameraControl, focusDistance: Float) : ListenableFuture<Void?> {
+        val camera2CameraControl = Camera2CameraControl.from(cameraControl)
+        val captureRequestOptions = CaptureRequestOptions.Builder()
+            .setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF)
+            .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusDistance)
+            .build()
+        return camera2CameraControl.setCaptureRequestOptions(captureRequestOptions)
     }
 }
