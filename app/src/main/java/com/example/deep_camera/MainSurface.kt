@@ -25,10 +25,6 @@ fun MainSurface(
     sharedPreferences: SharedPreferences? = null,
     shutterSound: ShutterSound? = null
 ) {
-//    val context = LocalContext.current
-//    val lifecycleOwner = LocalLifecycleOwner.current
-//    val focusList = Util.loadFocusArray(sharedPreferences) ?: defaultFocusArray
-//    var stateOfLastImageSaved by remember { mutableStateOf(false) }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -52,51 +48,12 @@ fun MainSurface(
                     }
                 })
         },
-//        bottomBar = {
-//            BottomAppBar {
-//                Spacer(modifier = Modifier.weight(1f))
-//                IconButton(
-//                    modifier = Modifier
-//                        .background(MaterialTheme.colorScheme.primary),
-//                    onClick = {
-//                        Util.takeAllPictures(
-//                            context = context,
-//                            lifecycleOwner = lifecycleOwner,
-//                            focusArray = focusList,
-//                            shutterSound = shutterSound,
-//                            // 取得最后一张照片是否保存的状态
-//                            setStateOfLastImageSaved = { newValue ->
-//                                stateOfLastImageSaved = newValue
-//                                Log.i("MainSurface", "stateOfLastImageSaved: $newValue")
-//                            }
-//                        )
-//                    }) {
-//                    Icon(
-//                        imageVector = ImageVector.vectorResource(R.drawable.circle),
-//                        contentDescription = "Shutter"
-//                    )
-//                }
-//                Spacer(modifier = Modifier.weight(1f))
-//            }
-//        }
     ) { paddingValues ->
-//        if (stateOfLastImageSaved) {
-//            Text(
-//                text = "Last Image Saved",
-//                modifier = Modifier.padding(paddingValues)
-//            )
-//            stateOfLastImageSaved = false
-//            Log.i("MainSurface", "Camera Preview released")
-//        } else {
-//            CameraPreview()
             Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                 CameraScreen(
                     sharedPreferences = sharedPreferences,
                     shutterSound = shutterSound
                 )
             }
-
-//            Log.i("MainSurface", "Camera Preview updated")
-//        }
     }
 }

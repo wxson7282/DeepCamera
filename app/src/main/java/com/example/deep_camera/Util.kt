@@ -3,6 +3,8 @@ package com.example.deep_camera
 import android.content.ContentValues
 import android.content.Context
 import android.content.SharedPreferences
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
 import android.os.Environment
 import android.provider.MediaStore
@@ -149,16 +151,6 @@ object Util {
         val resolutionSelector =
             ResolutionSelector.Builder().setAspectRatioStrategy(aspectRatioStrategy)
                 .setResolutionStrategy(resolutionStrategy).build()
-        // 定义Preview
-//        return Preview.Builder().apply {
-//            Camera2Interop.Extender(this).apply {
-//                // 设置对焦模式为手动
-//                setCaptureRequestOption(
-//                    CaptureRequest.CONTROL_AF_MODE,
-//                    CaptureRequest.CONTROL_AF_MODE_OFF
-//                )
-//            }
-//        }.setResolutionSelector(resolutionSelector).build()
         return Preview.Builder().setResolutionSelector(resolutionSelector).build()
     }
 
@@ -196,13 +188,91 @@ object Util {
         ).build()
     }
 
+    /**
+     * 设置焦距
+     */
     @OptIn(ExperimentalCamera2Interop::class)
-    private fun setFocusDistance(cameraControl: CameraControl, focusDistance: Float) : ListenableFuture<Void?> {
+    private fun setFocusDistance(
+        cameraControl: CameraControl,
+        focusDistance: Float
+    ): ListenableFuture<Void?> {
         val camera2CameraControl = Camera2CameraControl.from(cameraControl)
-        val captureRequestOptions = CaptureRequestOptions.Builder()
-            .setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF)
-            .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusDistance)
-            .build()
+        val captureRequestOptions = CaptureRequestOptions.Builder().setCaptureRequestOption(
+                CaptureRequest.CONTROL_AF_MODE,
+                CaptureRequest.CONTROL_AF_MODE_OFF
+            ).setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusDistance).build()
         return camera2CameraControl.setCaptureRequestOptions(captureRequestOptions)
     }
+
+    /**
+     * 获取相机的对焦范围
+     * @param context 上下文
+     * @return 对焦范围
+     */
+    fun getFocusDistanceInfo(context: Context): FocusDistanceInfo {
+        val cameraManager =
+            context.getSystemService(Context.CAMERA_SERVICE) as android.hardware.camera2.CameraManager
+        val cameraId = cameraManager.cameraIdList.firstOrNull {
+            val characteristics = cameraManager.getCameraCharacteristics(it)
+            characteristics.get(CameraCharacteristics.LENS_FACING) == CameraMetadata.LENS_FACING_BACK
+        }
+        if (cameraId == null) {
+            Log.e("getMinFocusDistance", "No back camera found")
+            return FocusDistanceInfo(0f, 0f, "no-camera-found")
+        }
+        val characteristic = cameraManager.getCameraCharacteristics(cameraId)
+        // 检查是否支持手动对焦
+        val afAvailability = characteristic.get(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES)
+        if (afAvailability == null || !afAvailability.contains(CameraMetadata.CONTROL_AF_MODE_OFF)) {
+            Log.e("getMinFocusDistance", "Camera does not support manual focus")
+            return FocusDistanceInfo(0f, 0f, "non-focus-support")
+        }
+        // 获取镜头是否校准
+        val focusDistanceCalibration =
+            when (characteristic.get(CameraCharacteristics.LENS_INFO_FOCUS_DISTANCE_CALIBRATION)) {
+                CameraCharacteristics.LENS_INFO_FOCUS_DISTANCE_CALIBRATION_UNCALIBRATED -> "uncalibrated"
+                CameraCharacteristics.LENS_INFO_FOCUS_DISTANCE_CALIBRATION_CALIBRATED -> "calibrated"
+                CameraCharacteristics.LENS_INFO_FOCUS_DISTANCE_CALIBRATION_APPROXIMATE -> "approximate"
+                else -> "unknown"
+            }
+        Log.i("getMinFocusDistance", "isLensCalibrated: $focusDistanceCalibration")
+        // 获取焦点范围
+        val minFocusDistance = characteristic.get(
+            CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE
+        ) ?: 0f
+        Log.i("getMinFocusDistance", "minFocusDistance: $minFocusDistance")
+        // 获取超焦距
+        val hyperFocalDistance = characteristic.get(
+            CameraCharacteristics.LENS_INFO_HYPERFOCAL_DISTANCE
+        ) ?: 0f
+        Log.i("getMinFocusDistance", "hyperFocalDistance: $hyperFocalDistance")
+        return FocusDistanceInfo(minFocusDistance, hyperFocalDistance, focusDistanceCalibration)
+    }
+
+    /**
+     * 初始化对焦距离数组
+     * @param minFocusDistance 最小对焦距离
+     * @return 对焦距离数组
+     */
+    fun initFocusArray(minFocusDistance: Float, hyperFocalDistance: Float): Array<FocusItem> {
+        if (minFocusDistance == 0f) {
+            return arrayOf<FocusItem>(FocusItem(0.0F, true))
+        } else {
+            // 从hyperFocalDistance开始直到minFocusDistance,等分为6个焦点距离
+            // 倒数第二个焦点距离为超焦距
+            // 最后一个焦点距离为0f（无穷远）
+            val step = (minFocusDistance - hyperFocalDistance) / 6
+            return arrayOf<FocusItem>(
+                FocusItem(minFocusDistance, true),
+                FocusItem(step * 5, true),
+                FocusItem(step * 4, true),
+                FocusItem(step * 3, true),
+                FocusItem(step * 2, true),
+                FocusItem(step * 1, true),
+                FocusItem(hyperFocalDistance, true),
+                FocusItem(0f, true)
+            )
+        }
+    }
+
 }

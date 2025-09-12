@@ -50,6 +50,8 @@ fun SettingsSurface(
             })
         )
     }
+    val maxValueOfFocusList = mutableStateFocusList.maxOf { it.focusAt }
+    val minValueOfFocusList = mutableStateFocusList.minOf { it.focusAt }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -135,7 +137,10 @@ fun SettingsSurface(
                             if (index == mutableStateFocusList.size - 1) {
                                 return@OutlinedTextField
                             }
-                            if (!checkFocusDistance(newValue.toFloatOrNull()?: 0.0F)) {
+                            if (!checkFocusDistance(
+                                    newValue.toFloatOrNull()?: 0.0F,
+                                    maxValueOfFocusList,
+                                    minValueOfFocusList)) {
                                 // 弹出对话框提示用户输入不合法
                                 openDialog.value = true
                                 // 不合法的输入，不更新状态
@@ -162,7 +167,7 @@ fun SettingsSurface(
         AlertDialog(
             onDismissRequest = { openDialog.value = false },
             title = { Text("Error") },
-            text = { Text("Please input a number between 0 and 1") },
+            text = { Text("Please input a number between $minValueOfFocusList and $maxValueOfFocusList") },
             confirmButton = {
                 IconButton(onClick = { openDialog.value = false }) {
                     Icon(Icons.Filled.Done, contentDescription = "OK")
@@ -191,6 +196,6 @@ private fun navigateToMain(navController: NavController?) {
 }
 
 //焦点距离合规性检查
-private fun checkFocusDistance(focusDistance: Float): Boolean {
-    return focusDistance >= 0.0f && focusDistance <= 1.0f
+private fun checkFocusDistance(focusDistance: Float, maxValue: Float, minValue: Float): Boolean {
+    return focusDistance >= minValue && focusDistance <= maxValue
 }
