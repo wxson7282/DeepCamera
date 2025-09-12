@@ -188,6 +188,14 @@ object Util {
         ).build()
     }
 
+    fun setZoomRatio(
+        cameraControl: CameraControl,
+        zoomRatio: Float
+    ): ListenableFuture<Void?> {
+        val clampedZoomRatio = zoomRatio.coerceIn(0f, 1f)
+        return cameraControl.setLinearZoom(clampedZoomRatio)
+    }
+
     /**
      * 设置焦距
      */
@@ -256,13 +264,13 @@ object Util {
      */
     fun initFocusArray(minFocusDistance: Float, hyperFocalDistance: Float): Array<FocusItem> {
         if (minFocusDistance == 0f) {
-            return arrayOf<FocusItem>(FocusItem(0.0F, true))
+            return arrayOf(FocusItem(0.0F, true))
         } else {
             // 从hyperFocalDistance开始直到minFocusDistance,等分为6个焦点距离
             // 倒数第二个焦点距离为超焦距
             // 最后一个焦点距离为0f（无穷远）
             val step = (minFocusDistance - hyperFocalDistance) / 6
-            return arrayOf<FocusItem>(
+            return arrayOf(
                 FocusItem(minFocusDistance, true),
                 FocusItem(step * 5, true),
                 FocusItem(step * 4, true),

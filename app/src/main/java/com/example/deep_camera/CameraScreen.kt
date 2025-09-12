@@ -7,12 +7,15 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -34,6 +37,7 @@ fun CameraScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val focusArray = Util.loadFocusArray(sharedPreferences) ?: defaultFocusArray
+    var stateOfZoomRatio by remember { mutableFloatStateOf(0f) }
     // 初始化CameraProvider的监听器
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     // 初始化CameraProvider
@@ -68,6 +72,8 @@ fun CameraScreen(
             cameraProvider.unbindAll()
             // 绑定新的用例
             camera = cameraProvider.bindToLifecycle(lifecycleOwner,cameraSelector, imageCapture, preview)
+            // 设置初始焦距
+            Util.setZoomRatio(camera!!.cameraControl, stateOfZoomRatio)
         } catch (e: IllegalStateException) {
             Log.e("CameraScreen", "the use case has already been bound to another lifecycle or method is not called on main thread", e)
         } catch (e: IllegalArgumentException) {
@@ -85,7 +91,20 @@ fun CameraScreen(
     ConstraintLayout(
         modifier = Modifier.fillMaxSize()
     ) {
-        val (previewRef, buttonRef) = createRefs()
+        val (zoomRef, previewRef, buttonRef) = createRefs()
+        Slider(
+            modifier = Modifier.constrainAs(zoomRef) {
+                top.linkTo(parent.top)
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+            }.padding(horizontal = 15.dp),
+            value = stateOfZoomRatio,
+            onValueChange = { stateOfZoomRatio = it },
+            valueRange = 0f..1f,
+            onValueChangeFinished = {
+                Util.setZoomRatio(camera!!.cameraControl, stateOfZoomRatio)
+            }
+        )
         // 定义预览view
         AndroidView(factory = { previewView }, modifier = Modifier.constrainAs(previewRef) {
             top.linkTo(parent.top)
