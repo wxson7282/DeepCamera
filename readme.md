@@ -1,0 +1,8 @@
+app 是一个基于 Android 平台的相机应用，它提供了连续拍摄不同焦距照片的功能。
+这里共有两个用户界面，一个是主界面MainSurface，一个是设置界面SettingsSurface。
+主界面用于连续拍摄不同焦距照片，设置界面用于设置相机参数。
+主界面包含一个相机预览界面和快门按钮、Zoom调整Slider。
+设置界面包含一个焦距列表，用户可以在列表中选择是否使用这个焦距，也可以修改焦距值。
+app基于androidx.camera实现相机功能，通过LifecycleCameraProvider获取相机实例，
+通过CameraControl控制相机参数，通过CameraPreview显示相机预览，通过ImageCapture捕获照片。
+为了实现手动调整焦距，app通过CameraControl访问Camera2CameraControl设定焦距。
