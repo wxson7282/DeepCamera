@@ -32,6 +32,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.Executors
 
 object Util {
@@ -160,7 +163,7 @@ object Util {
      */
     fun getImageCapture(): ImageCapture {
         // 定义ResolutionStrategy
-        val resolutionStrategy = ResolutionStrategy(Size(1920, 1080), FALLBACK_RULE_CLOSEST_LOWER)
+        val resolutionStrategy = ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY
         // 定义AspectRatioStrategy
         val aspectRatioStrategy =
             AspectRatioStrategy(AspectRatio.RATIO_16_9, AspectRatioStrategy.FALLBACK_RULE_AUTO)
@@ -179,7 +182,9 @@ object Util {
      */
     private fun getOutputFileOptions(context: Context): ImageCapture.OutputFileOptions {
         val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, "${System.currentTimeMillis()}.jpg")
+            val simpleDateFormat = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.getDefault())
+            val currentDateTime = simpleDateFormat.format(Date())
+            put(MediaStore.MediaColumns.DISPLAY_NAME, "${currentDateTime}.jpg")
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
             put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
         }
@@ -189,8 +194,7 @@ object Util {
     }
 
     fun setZoomRatio(
-        cameraControl: CameraControl,
-        zoomRatio: Float
+        cameraControl: CameraControl, zoomRatio: Float
     ): ListenableFuture<Void?> {
         val clampedZoomRatio = zoomRatio.coerceIn(0f, 1f)
         return cameraControl.setLinearZoom(clampedZoomRatio)
@@ -201,14 +205,12 @@ object Util {
      */
     @OptIn(ExperimentalCamera2Interop::class)
     private fun setFocusDistance(
-        cameraControl: CameraControl,
-        focusDistance: Float
+        cameraControl: CameraControl, focusDistance: Float
     ): ListenableFuture<Void?> {
         val camera2CameraControl = Camera2CameraControl.from(cameraControl)
         val captureRequestOptions = CaptureRequestOptions.Builder().setCaptureRequestOption(
-                CaptureRequest.CONTROL_AF_MODE,
-                CaptureRequest.CONTROL_AF_MODE_OFF
-            ).setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusDistance).build()
+            CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF
+        ).setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusDistance).build()
         return camera2CameraControl.setCaptureRequestOptions(captureRequestOptions)
     }
 
