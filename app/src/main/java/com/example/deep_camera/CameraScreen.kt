@@ -15,7 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,12 +31,13 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 @Composable
 fun CameraScreen(
     sharedPreferences: SharedPreferences? = null,
-    shutterSound: ShutterSound? = null
+    shutterSound: ShutterSound? = null,
+    zoomRatio: Float? = null,
+    onZoomRatioChange: (Float) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val focusArray = Util.loadFocusArray(sharedPreferences) ?: defaultFocusArray
-    var stateOfZoomRatio by remember { mutableFloatStateOf(0f) }
     // 初始化CameraProvider的监听器
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     // 初始化CameraProvider
@@ -73,7 +73,7 @@ fun CameraScreen(
             // 绑定新的用例
             camera = cameraProvider.bindToLifecycle(lifecycleOwner,cameraSelector, imageCapture, preview)
             // 设置初始焦距
-            Util.setZoomRatio(camera!!.cameraControl, stateOfZoomRatio)
+            Util.setZoomRatio(camera!!.cameraControl, zoomRatio)
         } catch (e: IllegalStateException) {
             Log.e("CameraScreen", "the use case has already been bound to another lifecycle or method is not called on main thread", e)
         } catch (e: IllegalArgumentException) {
@@ -98,11 +98,11 @@ fun CameraScreen(
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
             }.padding(horizontal = 15.dp),
-            value = stateOfZoomRatio,
-            onValueChange = { stateOfZoomRatio = it },
+            value = zoomRatio ?: 0f,
+            onValueChange = { onZoomRatioChange(it) },
             valueRange = 0f..1f,
             onValueChangeFinished = {
-                Util.setZoomRatio(camera!!.cameraControl, stateOfZoomRatio)
+                Util.setZoomRatio(camera!!.cameraControl, zoomRatio)
             }
         )
         // 定义预览view

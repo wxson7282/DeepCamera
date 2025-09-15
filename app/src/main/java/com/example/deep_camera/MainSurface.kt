@@ -23,7 +23,9 @@ import androidx.navigation.NavController
 fun MainSurface(
     navController: NavController? = null,
     sharedPreferences: SharedPreferences? = null,
-    shutterSound: ShutterSound? = null
+    shutterSound: ShutterSound? = null,
+    zoomRatio: Float? = null,
+    onZoomRatioChange: (Float) -> Unit
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -52,7 +54,9 @@ fun MainSurface(
             Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                 CameraScreen(
                     sharedPreferences = sharedPreferences,
-                    shutterSound = shutterSound
+                    shutterSound = shutterSound,
+                    zoomRatio = zoomRatio,
+                    onZoomRatioChange = onZoomRatioChange
                 )
             }
     }

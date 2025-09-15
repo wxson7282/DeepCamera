@@ -194,9 +194,9 @@ object Util {
     }
 
     fun setZoomRatio(
-        cameraControl: CameraControl, zoomRatio: Float
+        cameraControl: CameraControl, zoomRatio: Float?
     ): ListenableFuture<Void?> {
-        val clampedZoomRatio = zoomRatio.coerceIn(0f, 1f)
+        val clampedZoomRatio = zoomRatio?.coerceIn(0f, 1f) ?: 0f
         return cameraControl.setLinearZoom(clampedZoomRatio)
     }
 

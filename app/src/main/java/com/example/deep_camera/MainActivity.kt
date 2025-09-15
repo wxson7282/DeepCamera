@@ -15,9 +15,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
@@ -93,12 +96,15 @@ class MainActivity : ComponentActivity() {
     fun AppNavigation() {
         Log.i("AppNavigation", "start")
         val navController = rememberNavController()
+        var stateOfZoomRatio by remember { mutableFloatStateOf(0f) }
         NavHost(navController = navController, startDestination = "main") {
             composable("main") {
                 MainSurface(
                     navController = navController,
                     sharedPreferences = sharedPreferences,
-                    shutterSound = shutterSound
+                    shutterSound = shutterSound,
+                    zoomRatio = stateOfZoomRatio,
+                    onZoomRatioChange = { stateOfZoomRatio = it }
                 )
             }
             composable("settings") {
@@ -114,7 +120,7 @@ class MainActivity : ComponentActivity() {
     fun InitFocusDistanceList() {
         val focusDistanceInfo = Util.getFocusDistanceInfo(this)
         val mutableStateFocusList = remember {
-            mutableStateListOf<FocusItem>(
+            mutableStateListOf(
                 *(Util.loadFocusArray(sharedPreferences) ?: defaultFocusArray)
             )
         }
