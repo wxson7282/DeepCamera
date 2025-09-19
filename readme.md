@@ -28,10 +28,10 @@ DeepCamera/
 - 实现相机连续变焦拍摄功能
 - 支持照片保存到系统相册
 - 自定义焦距一览表
-2. 手动控制相机模块（manual_camera）
+2.手动控制相机模块（manual_camera）
 - 提供相机参数手动调节功能 支持曝光、对焦等参数自定义
 -  支持前后摄像头同时预览 实现多摄像头并发采集
-3. 双摄像头模块（dual_camera）
+3.双摄像头模块（dual_camera）
 - 支持前后摄像头同时预览
 - 实现多摄像头并发采集
 ### 相机控制基础概念
@@ -48,7 +48,7 @@ androidX对于相机的控制有三种途径
 ### 核心实现方法
 1. 获取Preview
 ```kotlin
-/fun getPreview(): Preview {
+fun getPreview(): Preview {
         // 定义ResolutionStrategy
         val resolutionStrategy = ResolutionStrategy(Size(1920, 1080), FALLBACK_RULE_CLOSEST_LOWER)
         // 定义AspectRatioStrategy
@@ -62,7 +62,7 @@ androidX对于相机的控制有三种途径
     }
 ```
 
-2. 获取ImageCapture
+2.获取ImageCapture
 ```kotlin
 fun getImageCapture(): ImageCapture {
         // 定义ResolutionStrategy
@@ -79,7 +79,7 @@ fun getImageCapture(): ImageCapture {
     }
 ```
 
-3. 获取ImageCapture的输出文件选项
+3.获取ImageCapture的输出文件选项
 ```kotlin
 private fun getOutputFileOptions(context: Context): ImageCapture.OutputFileOptions {
         val contentValues = ContentValues().apply {
@@ -95,7 +95,7 @@ private fun getOutputFileOptions(context: Context): ImageCapture.OutputFileOptio
     }
 ```
 
-4. 设置缩放比例
+4.设置缩放比例
 ```kotlin
 fun setZoomRatio(
         cameraControl: CameraControl, zoomRatio: Float?
@@ -104,7 +104,7 @@ fun setZoomRatio(
         return cameraControl.setLinearZoom(clampedZoomRatio)
     }
 ```
-5. 设置焦距
+5.设置焦距
 
 ```kotlin
 private fun setFocusDistance(
@@ -118,7 +118,7 @@ private fun setFocusDistance(
     }
 ```
 
-7. 获取相机的对焦范围
+7.获取相机的对焦范围
 
 ```kotlin
 fun getFocusDistanceInfo(context: Context): FocusDistanceInfo {
