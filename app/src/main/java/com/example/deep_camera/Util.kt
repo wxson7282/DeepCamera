@@ -193,6 +193,12 @@ object Util {
         ).build()
     }
 
+    /**
+     * 设置缩放比例
+     * @param cameraControl 相机控制
+     * @param zoomRatio 缩放比例
+     * @return 监听Future
+     */
     fun setZoomRatio(
         cameraControl: CameraControl, zoomRatio: Float?
     ): ListenableFuture<Void?> {
