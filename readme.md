@@ -1,4 +1,4 @@
-@[TOC](用androidx.camera拍摄景深合成照片)
+
 # 用androidx.camera拍摄景深合成照片
 
 androidx.camera的不断完善，使得原来复杂繁琐的安卓相机开发容易了许多。很多传统相机上有称之为景深包围的拍照功能，一次拍摄完成多张不同焦点的照片，后期用软件把多张照片合称为一张大景深或全景深照片。
@@ -7,13 +7,13 @@ androidx.camera的不断完善，使得原来复杂繁琐的安卓相机开发�
 DeepCamera 是一个基于 Android 平台的相机应用项目，
 采用 Kotlin 语言和 Jetpack Compose 框架开发，
 集成 CameraX 库实现相机功能。项目包含三个独立模块，
-分别提供基础相机、手动控制相机和双摄像头并发采集功能。
+分别提供连续变焦拍摄、手动控制相机和双摄像头并发采集功能。
 ### 系统架构
 项目采用模块化架构设计，整体结构如下：
 
 ```language  
 DeepCamera/  
-├── app/                 # 主应用模块（基础相机功能）  
+├── app/                 # 连续变焦拍摄模块  
 ├── manual_camera/       # 手动控制相机模块  
 └── dual_camera/         # 双摄像头并发采集模块  
   
@@ -24,12 +24,12 @@ DeepCamera/
 - 数据层：处理图片存储与系统媒体库交互
 
 ### 主要功能模块
-1. 基础相机模块（app）
-- 实现相机预览、拍照功能
+1.连续变焦拍摄模块（app）
+- 实现相机连续变焦拍摄功能
 - 支持照片保存到系统相册
-- 权限动态申请与管理
+- 自定义焦距一览表
 2. 手动控制相机模块（manual_camera）
-- 提供相机参数手动调节功能 支持曝光、对焦等参数自定义 双摄像头模块（dual_camera）
+- 提供相机参数手动调节功能 支持曝光、对焦等参数自定义
 -  支持前后摄像头同时预览 实现多摄像头并发采集
 3. 双摄像头模块（dual_camera）
 - 支持前后摄像头同时预览
@@ -48,7 +48,7 @@ androidX对于相机的控制有三种途径
 ### 核心实现方法
 1. 获取Preview
 ```kotlin
-fun getPreview(): Preview {
+/fun getPreview(): Preview {
         // 定义ResolutionStrategy
         val resolutionStrategy = ResolutionStrategy(Size(1920, 1080), FALLBACK_RULE_CLOSEST_LOWER)
         // 定义AspectRatioStrategy
