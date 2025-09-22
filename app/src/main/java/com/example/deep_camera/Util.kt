@@ -208,6 +208,9 @@ object Util {
 
     /**
      * 设置焦距
+     * @param cameraControl 相机控制
+     * @param focusDistance 焦距
+     * @return 监听Future
      */
     @OptIn(ExperimentalCamera2Interop::class)
     private fun setFocusDistance(

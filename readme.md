@@ -30,24 +30,36 @@ DeepCamera/
 - 自定义焦距一览表
 2.手动控制相机模块（manual_camera）
 - 提供相机参数手动调节功能 支持曝光、对焦等参数自定义
--  支持前后摄像头同时预览 实现多摄像头并发采集
+- 支持前后摄像头控制
 3.双摄像头模块（dual_camera）
 - 支持前后摄像头同时预览
 - 实现多摄像头并发采集
 ### 相机控制基础概念
-androidX用抽象类UseCase（用例）管理相机的应用。UseCase目前只有ImageAnalysis, ImageCapture, Preview, VideoCapture四种子类，对应四种应用：图像分析、拍照、预览、拍视频。在程序中需要把UseCase绑定到CameraProvider，以实现对相机应用场景的控制。
+androidX用抽象类UseCase（用例）管理相机的应用。
+UseCase目前只有ImageAnalysis, ImageCapture, Preview, VideoCapture四种子类，对应四种应用：图像分析、拍照、预览、拍视频。
+在程序中需要把UseCase绑定到CameraProvider，以实现对相机应用场景的控制。
 
 androidX对于相机的控制有三种途径
 1. CameraController
-   CameraController是androidx.camera.view中的抽象类，它的实现是LifecycleCameraController，这是一个高级控制器，在单个类中提供了大多数 CameraX 核心功能。它负责相机初始化，创建并配置用例，并在准备就绪时将它们绑定到生命周期所有者。它还会监听设备运动传感器，并为UseCase用例设置目标旋转角度。
+   CameraController是androidx.camera.view中的抽象类，它的实现是LifecycleCameraController，这是一个高级控制器，
+在单个类中提供了大多数 CameraX 核心功能。它负责相机初始化，创建并配置用例，并在准备就绪时将它们绑定到生命周期所有者。
+它还会监听设备运动传感器，并为UseCase用例设置目标旋转角度。
 2. CameraControl
-   CameraControl是androidx.camera.core中的接口，它提供各种异步操作，如变焦、对焦和测光，这些操作会影响当前绑定到该相机的所有UseCase用例的输出。CameraControl 的每种方法都会返回一个 ListenableFuture，应用程序可以用它来检查异步结果。
+   CameraControl是androidx.camera.core中的接口，它提供各种异步操作，如变焦、对焦和测光，
+这些操作会影响当前绑定到该相机的所有UseCase用例的输出。CameraControl 的每种方法都会返回一个 ListenableFuture，
+应用程序可以用它来检查异步结果。
 3. Camera2CameraControl
-   Camera2CameraControl是androidx.camera.camera2.interop中的不可重写类，它提供与 android.hardware.camera2 API 的互操作能力，可以实现CameraControl所不能提供的相机底层操作，例如手动设定焦距。
+   Camera2CameraControl是androidx.camera.camera2.interop中的不可重写类，
+它提供与 android.hardware.camera2 API 的互操作能力，可以实现CameraControl所不能提供的相机底层操作，例如手动设定焦距。
 
 ### 核心实现方法
 1. 获取Preview
 ```kotlin
+/**
+ * 获取Preview
+ * @return Preview
+ */
+@OptIn(ExperimentalCamera2Interop::class)
 fun getPreview(): Preview {
         // 定义ResolutionStrategy
         val resolutionStrategy = ResolutionStrategy(Size(1920, 1080), FALLBACK_RULE_CLOSEST_LOWER)
@@ -64,6 +76,10 @@ fun getPreview(): Preview {
 
 2.获取ImageCapture
 ```kotlin
+/**
+ * 获取ImageCapture
+ * @return ImageCapture
+ */
 fun getImageCapture(): ImageCapture {
         // 定义ResolutionStrategy
         val resolutionStrategy = ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY
@@ -81,6 +97,11 @@ fun getImageCapture(): ImageCapture {
 
 3.获取ImageCapture的输出文件选项
 ```kotlin
+/**
+ * 获取ImageCapture的输出文件选项
+ * @param Context 上下文
+ * @return ImageCapture.OutputFileOptions
+ */
 private fun getOutputFileOptions(context: Context): ImageCapture.OutputFileOptions {
         val contentValues = ContentValues().apply {
             val simpleDateFormat = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.getDefault())
@@ -97,6 +118,12 @@ private fun getOutputFileOptions(context: Context): ImageCapture.OutputFileOptio
 
 4.设置缩放比例
 ```kotlin
+/**
+ * 设置缩放比例
+ * @param cameraControl 相机控制
+ * @param zoomRatio 缩放比例
+ * @return 监听Future
+ */
 fun setZoomRatio(
         cameraControl: CameraControl, zoomRatio: Float?
     ): ListenableFuture<Void?> {
@@ -107,6 +134,13 @@ fun setZoomRatio(
 5.设置焦距
 
 ```kotlin
+/**
+ * 设置焦距
+ * @param cameraControl 相机控制
+ * @param focusDistance 焦距
+ * @return 监听Future
+ */
+@OptIn(ExperimentalCamera2Interop::class)
 private fun setFocusDistance(
         cameraControl: CameraControl, focusDistance: Float
     ): ListenableFuture<Void?> {
@@ -121,6 +155,11 @@ private fun setFocusDistance(
 7.获取相机的对焦范围
 
 ```kotlin
+/**
+ * 获取相机的对焦范围
+ * @param context 上下文
+ * @return 对焦范围
+ */
 fun getFocusDistanceInfo(context: Context): FocusDistanceInfo {
         val cameraManager =
             context.getSystemService(Context.CAMERA_SERVICE) as android.hardware.camera2.CameraManager
