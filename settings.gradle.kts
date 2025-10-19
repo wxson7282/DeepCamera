@@ -23,3 +23,5 @@ rootProject.name = "Deep Camera"
 include(":app")
 include(":manual_camera")
 include(":dual_camera")
+include(":time_lapse_camera")
+include(":security_camera")

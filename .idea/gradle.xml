@@ -13,6 +13,8 @@
             <option value="$PROJECT_DIR$/app" />
             <option value="$PROJECT_DIR$/dual_camera" />
             <option value="$PROJECT_DIR$/manual_camera" />
+            <option value="$PROJECT_DIR$/security_camera" />
+            <option value="$PROJECT_DIR$/time_lapse_camera" />
           </set>
         </option>
       </GradleProjectSettings>
