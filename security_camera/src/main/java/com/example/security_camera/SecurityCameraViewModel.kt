@@ -14,7 +14,8 @@ class SecurityCameraViewModel : ViewModel() {
     val viewState : State<ViewState> = _viewState
 
     data class ViewState (
-        val btnVideoCaptureIsOn: Boolean = false
+        val isVideoRecoding: Boolean = false,
+        val isScreenOn: Boolean = false
     )
 
     fun dispatch(action: Action) =
@@ -24,13 +25,21 @@ class SecurityCameraViewModel : ViewModel() {
         viewModelScope.launch {
             withContext(Dispatchers.Default) {
                 when (action) {
-                    Action.Start -> {
+                    Action.VideoRecoderStart -> {
                         // TODO: 2023/08/10 启动视频捕获
-                        _viewState.value = state.copy(btnVideoCaptureIsOn = true)
+                        _viewState.value = state.copy(isVideoRecoding = true)
                     }
-                    Action.Stop -> {
+                    Action.VideoRecoderStop -> {
                         // TODO: 2023/08/10 停止视频捕获
-                        _viewState.value = state.copy(btnVideoCaptureIsOn = false)
+                        _viewState.value = state.copy(isVideoRecoding = false)
+                    }
+                    Action.ScreenOn -> {
+                        // TODO: 2023/08/10 打开屏幕
+                        _viewState.value = state.copy(isScreenOn = true)
+                    }
+                    Action.ScreenOff -> {
+                        // TODO: 2023/08/10 关闭屏幕
+                        _viewState.value = state.copy(isScreenOn = false)
                     }
                 }
             }
@@ -39,6 +48,8 @@ class SecurityCameraViewModel : ViewModel() {
 }
 
 sealed interface Action {
-    object Start : Action
-    object Stop : Action
+    object VideoRecoderStart : Action
+    object VideoRecoderStop : Action
+    object ScreenOff : Action
+    object ScreenOn : Action
 }
