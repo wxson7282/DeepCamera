@@ -45,6 +45,10 @@ class SecurityCameraViewModel : ViewModel() {
             }
         }
     }
+
+    private fun emit(state: ViewState) {
+        _viewState.value = state
+    }
 }
 
 sealed interface Action {

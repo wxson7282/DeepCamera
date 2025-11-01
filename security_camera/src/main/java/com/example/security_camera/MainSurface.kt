@@ -1,10 +1,7 @@
 package com.example.security_camera
 
+import android.content.SharedPreferences
 import android.util.Log
-import androidx.camera.core.Camera
-import androidx.camera.core.CameraSelector
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Row
@@ -15,10 +12,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -29,60 +23,33 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
-fun DisplaySurface(
-    modifier: Modifier = Modifier
+fun MainSurface(
+    modifier: Modifier = Modifier,
+    clickable: Clickable = combinedClickable(),
+    sharedPreferences: SharedPreferences
 ) {
     Log.i("DisplaySurface", "DisplaySurface start")
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val securityCameraViewModel: SecurityCameraViewModel = viewModel()
-    val viewState = securityCameraViewModel.viewState.value
-    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
-    var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
-    val previewView = remember {
-        PreviewView(context).apply {
-            implementationMode = PreviewView.ImplementationMode.PERFORMANCE
-        }
-    }
-    var camera by remember { mutableStateOf<Camera?>(null) }
-    val preview = remember { Util.getPreview() }
-    val videoCapture = remember { Util.getVideoCapture() }
-
-    LaunchedEffect(cameraProviderFuture) {
-        // 监听CameraProvider的变化，从监听器中获取CameraProvider实例
-        cameraProvider = cameraProviderFuture.get()
+    val viewState = viewModel<SecurityCameraViewModel>().viewState.value
+    // 初始化相机管理器
+    val cameraManager = remember {
+        CameraManager(
+            context = context,
+            lifecycleOwner = lifecycleOwner,
+            sharedPreferences = sharedPreferences
+        )
     }
 
-    DisposableEffect(lifecycleOwner, cameraProvider) {
-        val cameraProvider = cameraProvider ?: return@DisposableEffect onDispose {}
-        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-        try {
-            cameraProvider.unbindAll()
-            camera = cameraProvider.bindToLifecycle(
-                lifecycleOwner,
-                cameraSelector,
-                videoCapture,
-                preview
-            )
-        } catch (e: IllegalStateException) {
-            Log.e(
-                "DisplaySurface",
-                "the use case has already been bound to another lifecycle or method is not called on main thread",
-                e
-            )
-        } catch (e: IllegalArgumentException) {
-            Log.e(
-                "DisplaySurface",
-                "the provided camera selector is unable to resolve a camera to be used for the given use cases",
-                e
-            )
-        } catch (e: Exception) {
-            Log.e("DisplaySurface", "Error binding camera use cases", e)
-            e.printStackTrace()
-        }
+    // 相机初始化
+    LaunchedEffect(Unit) {
+        cameraManager.initCamera()
+    }
 
+    // 生命周期管理
+    DisposableEffect(Unit) {
         onDispose {
-            cameraProvider.unbindAll()
+            cameraManager.release()
         }
     }
 
@@ -91,7 +58,7 @@ fun DisplaySurface(
     ) {
         val (previewRef, buttonRowRef, videoCaptureBtnRef, screenBtnRef) = createRefs()
         // 预览视图
-        AndroidView(factory = { previewView }, modifier = Modifier.constrainAs(previewRef) {
+        AndroidView(factory = { cameraManager.previewView }, modifier = Modifier.constrainAs(previewRef) {
             top.linkTo(parent.top)
             bottom.linkTo(parent.bottom)
             start.linkTo(parent.start)
@@ -112,9 +79,7 @@ fun DisplaySurface(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
                     // 录像
-                    Util.recordVideos(
-                        context = context, videoCapture = videoCapture, camera = camera!!
-                    )
+                    cameraManager.recordVideos()
                 }) {
                 Icon(
                     imageVector = if (viewState.isVideoRecoding)
@@ -126,5 +91,14 @@ fun DisplaySurface(
             }
         }
     }
-
 }
+
+data class Clickable constructor(
+    val onRecord : () -> Unit,
+    val onScreenOff : () -> Unit
+)
+
+fun combinedClickable(
+    onRecord : () -> Unit = {},
+    onScreenOff : () -> Unit = {}
+) = Clickable(onRecord, onScreenOff)
