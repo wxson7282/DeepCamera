@@ -25,19 +25,19 @@ class SecurityCameraViewModel : ViewModel() {
         viewModelScope.launch {
             withContext(Dispatchers.Default) {
                 when (action) {
-                    Action.VideoRecoderStart -> {
+                    Action.StartRecord -> {
                         // TODO: 2023/08/10 启动视频捕获
                         _viewState.value = state.copy(isVideoRecoding = true)
                     }
-                    Action.VideoRecoderStop -> {
+                    Action.StopRecord -> {
                         // TODO: 2023/08/10 停止视频捕获
                         _viewState.value = state.copy(isVideoRecoding = false)
                     }
-                    Action.ScreenOn -> {
+                    Action.TurnOnScreen -> {
                         // TODO: 2023/08/10 打开屏幕
                         _viewState.value = state.copy(isScreenOn = true)
                     }
-                    Action.ScreenOff -> {
+                    Action.TurnOffScreen -> {
                         // TODO: 2023/08/10 关闭屏幕
                         _viewState.value = state.copy(isScreenOn = false)
                     }
@@ -52,8 +52,8 @@ class SecurityCameraViewModel : ViewModel() {
 }
 
 sealed interface Action {
-    object VideoRecoderStart : Action
-    object VideoRecoderStop : Action
-    object ScreenOff : Action
-    object ScreenOn : Action
+    object StartRecord : Action
+    object StopRecord : Action
+    object TurnOffScreen : Action
+    object TurnOnScreen : Action
 }
