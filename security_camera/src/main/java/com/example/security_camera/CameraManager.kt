@@ -42,25 +42,14 @@ class CameraManager(
         bindCameraUseCases()
     }
 
-    fun bindCameraUseCases() {
-        val cameraProvider = cameraProvider ?: return
-        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-
-        try {
-            cameraProvider.unbindAll()
-            camera = cameraProvider.bindToLifecycle(
-                lifecycleOwner, cameraSelector, videoCapture, preview
-            )
-        } catch (e: Exception) {
-            Log.e("CameraManager", "Error binding camera use cases", e)
-        }
-    }
-
     fun release() {
         cameraProvider?.unbindAll()
     }
 
-    fun recordVideos() {}
+    fun startVideoCapture() {}
+    fun stopVideoCapture() {}
+    fun turnOnScreen() {}
+    fun turnOffScreen() {}
 
     private fun getVideoCapture(): VideoCapture<Recorder> {
         return VideoCapture.withOutput<Recorder>(getRecorder())
@@ -83,4 +72,19 @@ class CameraManager(
                 .setResolutionStrategy(resolutionStrategy).build()
         return Preview.Builder().setResolutionSelector(resolutionSelector).build()
     }
+
+    private fun bindCameraUseCases() {
+        val cameraProvider = cameraProvider ?: return
+        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+        try {
+            cameraProvider.unbindAll()
+            camera = cameraProvider.bindToLifecycle(
+                lifecycleOwner, cameraSelector, videoCapture, preview
+            )
+        } catch (e: Exception) {
+            Log.e("CameraManager", "Error binding camera use cases", e)
+        }
+    }
+
 }
