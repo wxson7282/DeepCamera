@@ -49,6 +49,7 @@ fun MainSurface(
     ) {
         CameraBody(
             modifier = Modifier.fillMaxSize(),
+            // 注入点击事件相应
             clickable = combinedClickable(
                 onRecordBtnPressed = {
                     if (!viewState.isVideoRecoding) {
@@ -65,13 +66,13 @@ fun MainSurface(
                     }
                 }
             ),
-            sharedPreferences = sharedPreferences,
+            // 注入预览视图到CameraBody的AndroidView
             previewView = cameraManager.previewView
         )
     }
 }
 
-data class Clickable constructor(
+data class Clickable (
     val onRecordBtnPressed : () -> Unit,
     val onScreenOffBtnPressed : () -> Unit
 )

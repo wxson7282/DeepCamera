@@ -1,9 +1,9 @@
 package com.example.security_camera
 
-import android.content.SharedPreferences
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,7 +22,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 fun CameraBody(
     modifier: Modifier = Modifier,
     clickable: Clickable = combinedClickable(),
-    sharedPreferences: SharedPreferences,
     previewView: PreviewView,
 ) {
     val viewState = viewModel<SecurityCameraViewModel>().viewState.value
@@ -44,21 +43,23 @@ fun CameraBody(
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
             }
-            .fillMaxWidth()) {
+            .fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             val mutableInteractionSource = remember { MutableInteractionSource() }
             val isPressed = mutableInteractionSource.collectIsPressedAsState().value
             // 定义录像按钮
             IconButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    clickable.onRecordBtnPressed()
-                }) {
+                onClick = { clickable.onRecordBtnPressed() }) {
                 Icon(
-                    imageVector = if (viewState.isVideoRecoding)
-                        ImageVector.vectorResource(R.drawable.baseline_square_24)
-                    else
-                        ImageVector.vectorResource(R.drawable.baseline_circle_24),
+                    imageVector = if (viewState.isVideoRecoding) ImageVector.vectorResource(R.drawable.baseline_square_24)
+                    else ImageVector.vectorResource(R.drawable.baseline_circle_24),
                     contentDescription = "Record"
+                )
+            }
+            IconButton(
+                onClick = { clickable.onScreenOffBtnPressed() }) {
+                Icon(
+                    imageVector = ImageVector.vectorResource(R.drawable.screen_off_24),
+                    contentDescription = "Screen"
                 )
             }
         }
