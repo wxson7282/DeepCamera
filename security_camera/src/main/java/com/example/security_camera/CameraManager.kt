@@ -15,10 +15,14 @@ import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.video.FallbackStrategy
+import androidx.camera.video.Quality
+import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
 import androidx.camera.video.VideoCapture
 import androidx.camera.view.PreviewView
 import androidx.lifecycle.LifecycleOwner
+import java.util.concurrent.Executors
 
 class CameraManager(
     private val context: Context,
@@ -52,11 +56,13 @@ class CameraManager(
     fun turnOffScreen() {}
 
     private fun getVideoCapture(): VideoCapture<Recorder> {
-        return VideoCapture.withOutput<Recorder>(getRecorder())
-    }
-
-    private fun getRecorder(): Recorder {
-        return Recorder.Builder().build()
+        return VideoCapture.withOutput<Recorder>(
+            Recorder.Builder()
+                .setExecutor(Executors.newSingleThreadExecutor())
+                .setQualitySelector(QualitySelector.from(Quality.SD,
+                    FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)))
+                .build()
+        )
     }
 
     @OptIn(ExperimentalCamera2Interop::class)

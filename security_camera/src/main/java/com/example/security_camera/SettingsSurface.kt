@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Done
@@ -20,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -29,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.navigation.NavController
@@ -41,14 +45,20 @@ fun SettingsSurface(
     // 输入对话框是否打开
     val openDialog4VideoClipLength = remember { mutableStateOf(false) }
     val openDialog4StorageSpace = remember { mutableStateOf(false) }
+    val openDialog4VideoQuality = remember { mutableStateOf(false) }
     // 视频片段长度，以分钟为单位
     val mutableStateOfVideoClipLength =
         remember { mutableIntStateOf(sharedPreferences?.getInt("video_clip_length", 3) ?: 3) }
     // 存储空间，以GB为单位
     val mutableStateOfStorageSpace =
         remember { mutableIntStateOf(sharedPreferences?.getInt("storage_space", 32) ?: 32) }
-    Scaffold(topBar = {
-        TopAppBar(title = { Text("Security Camera Settings") }, navigationIcon = {
+    // 视频质量格式
+    val videoQualityOptions = listOf("SD", "HD", "FHD")
+    val mutableVideoQuality =
+        remember { mutableStateOf(sharedPreferences?.getString("video_quality", videoQualityOptions[0]) ?: videoQualityOptions[0]) }
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("Security Camera Settings") }, navigationIcon = {
             IconButton(
                 modifier = Modifier.background(MaterialTheme.colorScheme.primary),
                 onClick = {
@@ -59,8 +69,9 @@ fun SettingsSurface(
                 )
             }
         })
-    }, bottomBar = {
-        BottomAppBar {
+    },
+        bottomBar = {
+            BottomAppBar {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -72,6 +83,7 @@ fun SettingsSurface(
                         sharedPreferences?.edit {
                             putInt("video_clip_length", mutableStateOfVideoClipLength.intValue)
                             putInt("storage_space", mutableStateOfStorageSpace.intValue)
+                            putString("video_quality", mutableVideoQuality.value)
                         }
                         navigateToMain(navController)
                     }) {
@@ -137,6 +149,27 @@ fun SettingsSurface(
                         }
                     }
                 )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().selectableGroup(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                videoQualityOptions.forEach { text ->
+                    Column(
+                        modifier = Modifier.padding(2.dp).selectable(
+                            selected = (mutableVideoQuality.value == text),
+                            onClick = { mutableVideoQuality.value = text },
+                            role = Role.RadioButton
+                        )
+                    ) {
+                        RadioButton(
+                            selected = (mutableVideoQuality.value == text),
+                            onClick = null
+                        )
+                        Text(text)
+                    }
+                }
             }
         }
     }
