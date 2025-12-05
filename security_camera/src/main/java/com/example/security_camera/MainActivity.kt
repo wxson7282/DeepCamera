@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
     fun AppNavigation() {
         Log.i("AppNavigation", "start")
         val navController = rememberNavController()
-        NavHost(navController = navController, startDestination = "settings") {
+        NavHost(navController = navController, startDestination = "main") {
             composable("main") {
                 MainSurface(
                     sharedPreferences = sharedPreferences,

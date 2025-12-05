@@ -12,6 +12,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.viewinterop.AndroidView
@@ -52,7 +53,8 @@ fun CameraBody(
                 Icon(
                     imageVector = if (viewState.isVideoRecoding) ImageVector.vectorResource(R.drawable.baseline_square_24)
                     else ImageVector.vectorResource(R.drawable.baseline_circle_24),
-                    contentDescription = "Record"
+                    contentDescription = "Record",
+                    tint = Color(red = 255, green = 0, blue = 0)
                 )
             }
             IconButton(
