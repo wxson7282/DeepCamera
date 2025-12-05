@@ -27,7 +27,7 @@ import java.util.concurrent.Executors
 class CameraManager(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
-    private val sharedPreferences: SharedPreferences
+    private val sharedPreferences: SharedPreferences? = null
     ) {
     val previewView = PreviewView(context).apply {
         implementationMode = PreviewView.ImplementationMode.PERFORMANCE

@@ -2,21 +2,32 @@ package com.example.security_camera
 
 import android.content.SharedPreferences
 import android.util.Log
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainSurface(
-    modifier: Modifier = Modifier,
-    sharedPreferences: SharedPreferences
+    navController: NavController,
+    sharedPreferences: SharedPreferences? = null
 ) {
     Log.i("MainSurface", "MainSurface start")
     val context = LocalContext.current
@@ -44,11 +55,23 @@ fun MainSurface(
         }
     }
 
-    ConstraintLayout(
-        modifier = Modifier.fillMaxSize()
-    ) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Security Camera") },
+                navigationIcon = {
+                    IconButton(
+                        modifier = Modifier.background(MaterialTheme.colorScheme.primary),
+                        onClick = { navigateToSettings(navController) }) {
+                        Icon(imageVector = Icons.Filled.Settings,
+                            contentDescription = "Settings")
+                    }
+                }
+            )
+        },
+    ) { paddingValues ->
         CameraBody(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.padding(paddingValues),
             // 注入点击事件相应
             clickable = combinedClickable(
                 onRecordBtnPressed = {
@@ -81,3 +104,11 @@ fun combinedClickable(
     onRecordBtnPressed : () -> Unit = {},
     onScreenOffBtnPressed : () -> Unit = {}
 ) = Clickable(onRecordBtnPressed, onScreenOffBtnPressed)
+
+private fun navigateToSettings(navController: NavController) {
+    navController.navigate("settings") {
+        popUpTo("main") {
+            inclusive = true
+        }
+    }
+}
