@@ -45,7 +45,6 @@ fun SettingsSurface(
     // 输入对话框是否打开
     val openDialog4VideoClipLength = remember { mutableStateOf(false) }
     val openDialog4StorageSpace = remember { mutableStateOf(false) }
-    val openDialog4VideoQuality = remember { mutableStateOf(false) }
     // 视频片段长度，以分钟为单位
     val mutableStateOfVideoClipLength =
         remember { mutableIntStateOf(sharedPreferences?.getInt("video_clip_length", 3) ?: 3) }
@@ -81,11 +80,25 @@ fun SettingsSurface(
                     modifier = Modifier.background(MaterialTheme.colorScheme.primary),
                     onClick = {
                         sharedPreferences?.edit {
-                            putInt("video_clip_length", mutableStateOfVideoClipLength.intValue)
-                            putInt("storage_space", mutableStateOfStorageSpace.intValue)
+                            var value = mutableStateOfVideoClipLength.intValue
+                            if (value in 1..10){
+                                putInt("video_clip_length", value)
+                            }
+                            else {
+                                openDialog4VideoClipLength.value = true
+                                return@edit
+                            }
+                            value = mutableStateOfStorageSpace.intValue
+                            if (value in 1..128){
+                                putInt("storage_space", value)
+                            }
+                            else {
+                                openDialog4StorageSpace.value = true
+                                return@edit
+                            }
                             putString("video_quality", mutableVideoQuality.value)
+                            navigateToMain(navController)
                         }
-                        navigateToMain(navController)
                     }) {
                     Icon(
                         imageVector = Icons.Filled.Done, contentDescription = "Done"
@@ -116,16 +129,10 @@ fun SettingsSurface(
                 val videoClipLength = mutableStateOfVideoClipLength.intValue.toString()
                 OutlinedTextField(
                     modifier = Modifier.padding(2.dp),
-                    label = { Text("视频片段长度（分钟）") },
+                    label = { Text("视频片段长度（1-10分钟）") },
                     value = videoClipLength,
                     onValueChange = { newValue ->
-                        if (isValidVideoClipLength(newValue)) {
-                            mutableStateOfVideoClipLength.intValue = newValue.toInt()
-                        } else {
-                            // 弹出对话框提示用户输入不合法
-                            openDialog4VideoClipLength.value = true
-                            return@OutlinedTextField
-                        }
+                        mutableStateOfVideoClipLength.intValue = newValue.toIntOrNull()?: 0
                     }
                 )
             }
@@ -137,31 +144,29 @@ fun SettingsSurface(
                 val storageSpace = mutableStateOfStorageSpace.intValue.toString()
                 OutlinedTextField(
                     modifier = Modifier.padding(2.dp),
-                    label = { Text("存储空间（GB）") },
+                    label = { Text("存储空间（1-128GB）") },
                     value = storageSpace,
                     onValueChange = { newValue ->
-                        if (isValidStorageSpace(newValue)) {
-                            mutableStateOfStorageSpace.intValue = newValue.toInt()
-                        } else {
-                            // 弹出对话框提示用户输入不合法
-                            openDialog4StorageSpace.value = true
-                            return@OutlinedTextField
-                        }
+                        mutableStateOfStorageSpace.intValue = newValue.toIntOrNull()?: 0
                     }
                 )
             }
             Row(
-                modifier = Modifier.fillMaxWidth().selectableGroup(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectableGroup(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 videoQualityOptions.forEach { text ->
                     Column(
-                        modifier = Modifier.padding(2.dp).selectable(
-                            selected = (mutableVideoQuality.value == text),
-                            onClick = { mutableVideoQuality.value = text },
-                            role = Role.RadioButton
-                        )
+                        modifier = Modifier
+                            .padding(2.dp)
+                            .selectable(
+                                selected = (mutableVideoQuality.value == text),
+                                onClick = { mutableVideoQuality.value = text },
+                                role = Role.RadioButton
+                            )
                     ) {
                         RadioButton(
                             selected = (mutableVideoQuality.value == text),
@@ -190,7 +195,7 @@ fun SettingsSurface(
         AlertDialog(
             onDismissRequest = { openDialog4StorageSpace.value = false },
             title = { Text("Error") },
-            text = { Text("Please input a number between 1 and 100") },
+            text = { Text("Please input a number between 1 and 128") },
             confirmButton = {
                 IconButton(onClick = { openDialog4StorageSpace.value = false }) {
                     Icon(Icons.Filled.Done, contentDescription = "OK")
@@ -206,18 +211,4 @@ private fun navigateToMain(navController: NavController?) {
             inclusive = true
         }
     }
-}
-
-private fun isValidVideoClipLength(newValue: String): Boolean {
-    // 定义正则表达式模式（匹配1-9或10的整数字符串）
-    val pattern = "^(?:[1-9]|10)$"
-    // 创建Regex实例并检查输入字符串是否完全匹配
-    return Regex(pattern).matches(newValue)
-}
-
-private fun isValidStorageSpace(newValue: String): Boolean {
-    // 定义正则表达式模式（匹配1-99或100的整数字符串）
-    val pattern = "^(?:[1-9]|[1-9][0-9]|100)$"
-    // 创建Regex实例并检查输入字符串是否完全匹配
-    return Regex(pattern).matches(newValue)
 }
