@@ -8,6 +8,7 @@ import androidx.annotation.OptIn
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
+import androidx.camera.core.CameraInfoUnavailableException
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
@@ -38,7 +39,9 @@ class CameraManager(
     private val videoCapture = getVideoCapture()
 
     private val preview = getPreview().apply {
+        Log.i("CameraManager", "getPreview()")
         setSurfaceProvider(previewView.surfaceProvider)
+        Log.i("CameraManager", "setSurfaceProvider()")
     }
 
     fun initCamera() {
@@ -88,6 +91,11 @@ class CameraManager(
             camera = cameraProvider.bindToLifecycle(
                 lifecycleOwner, cameraSelector, videoCapture, preview
             )
+            Log.i("CameraManager", "bindCameraUseCases()")
+        } catch (e: CameraInfoUnavailableException) {
+            Log.e("CameraManager", "无法获取相机信息", e)
+        } catch (e: IllegalStateException) {
+            Log.e("CameraManager", "相机状态异常", e)
         } catch (e: Exception) {
             Log.e("CameraManager", "Error binding camera use cases", e)
         }

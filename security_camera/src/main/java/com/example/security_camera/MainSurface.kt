@@ -29,7 +29,8 @@ fun MainSurface(
     navController: NavController,
     sharedPreferences: SharedPreferences? = null
 ) {
-    Log.i("MainSurface", "MainSurface start")
+    val logTag = "MainSurface"
+    Log.i(logTag, "MainSurface start")
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val viewModel = viewModel<SecurityCameraViewModel>()
@@ -43,19 +44,23 @@ fun MainSurface(
         )
     }
 
-    // 相机初始化
+    // 启动异步任务
     LaunchedEffect(Unit) {
+        // 初始化相机
         cameraManager.initCamera()
+        Log.i(logTag, "cameraManager.initCamera()")
     }
 
     // 生命周期管理
     DisposableEffect(Unit) {
         onDispose {
             cameraManager.release()
+            Log.i(logTag, "cameraManager.release()")
         }
     }
 
     Scaffold(
+        // 顶部导航栏
         topBar = {
             TopAppBar(
                 title = { Text("Security Camera") },
@@ -89,7 +94,7 @@ fun MainSurface(
                     }
                 }
             ),
-            // 注入预览视图到CameraBody的AndroidView
+            // 注入预览视图到CameraBody的previewView
             previewView = cameraManager.previewView
         )
     }
