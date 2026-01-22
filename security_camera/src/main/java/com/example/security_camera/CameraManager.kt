@@ -2,6 +2,7 @@ package com.example.security_camera
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Environment
 import android.util.Log
 import android.util.Size
 import androidx.annotation.OptIn
@@ -17,19 +18,36 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FallbackStrategy
+import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
+import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
+import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
+import androidx.core.util.Consumer
 import androidx.lifecycle.LifecycleOwner
+import java.io.File
 import java.util.concurrent.Executors
 
 class CameraManager(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
     private val sharedPreferences: SharedPreferences? = null
-    ) {
+) {
+    private val maxStorageSize =
+        (sharedPreferences?.getInt("storage_space", 5) ?: 5) * 1024 * 1024 * 1024L
+    // 获取视频录制质量
+    private val videoCaptureQuality = sharedPreferences?.getString("video_quality", "SD") ?: "SD"
+
+    private val videoStorageDir by lazy {
+        context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)?.apply {
+            if (!exists()) mkdirs() // 确保目录存在
+        } ?: File(context.filesDir, "movies").apply {
+            if (!exists()) mkdirs()
+        }
+    }
     val previewView = PreviewView(context).apply {
         implementationMode = PreviewView.ImplementationMode.PERFORMANCE
     }
@@ -37,6 +55,26 @@ class CameraManager(
     private var cameraProvider: ProcessCameraProvider? = null
     private var camera: Camera? = null
     private val videoCapture = getVideoCapture()
+    // 视频录制事件监听
+    private val recordEventListener = Consumer<VideoRecordEvent> { videoRecordEvent ->
+        when (videoRecordEvent) {
+            is VideoRecordEvent.Start -> Log.i("CameraManager", "视频录制开始")
+            is VideoRecordEvent.Pause -> Log.i("CameraManager", "视频录制暂停")
+            is VideoRecordEvent.Resume -> Log.i("CameraManager", "视频录制继续")
+            is VideoRecordEvent.Finalize -> {
+                Log.i("CameraManager", "视频录制结束")
+                val error = videoRecordEvent.error
+                if (error == VideoRecordEvent.Finalize.ERROR_NONE) {
+                    Log.i("CameraManager", "视频录制成功")
+                } else {
+                    Log.e("CameraManager", "视频录制失败", videoRecordEvent.cause)
+                }
+            }
+        }
+    }
+
+    // 添加录制状态跟踪变量
+    private var recording: Recording? = null
 
     private val preview = getPreview().apply {
         Log.i("CameraManager", "getPreview()")
@@ -53,18 +91,53 @@ class CameraManager(
         cameraProvider?.unbindAll()
     }
 
-    fun startVideoCapture() {}
-    fun stopVideoCapture() {}
+    /**
+     * 开始视频录制
+     */
+    fun startVideoCapture() {
+        // 确保有足够的存储空间，删除最早文件（如果需要）
+        ensureStorageSpace()
+        // 创建视频存储文件 (使用时间戳确保唯一性)
+        val videoFile = File(
+            videoStorageDir,
+            "SECURITY_${System.currentTimeMillis()}.mp4"
+        )
+        val outputOptions = FileOutputOptions.Builder(videoFile).build()
+
+        try {
+            // 启动录制
+            recording = videoCapture.output.prepareRecording(context, outputOptions)
+                .start(Executors.newSingleThreadExecutor()
+                ) { recordEventListener }
+        } catch (e: Exception) {
+            Log.e("CameraManager", "视频录制失败", e)
+        }
+    }
+    /**
+     * 停止视频录制
+     */
+    fun stopVideoCapture() {
+        recording?.stop()
+        recording = null
+    }
     fun turnOnScreen() {}
     fun turnOffScreen() {}
 
     private fun getVideoCapture(): VideoCapture<Recorder> {
-        return VideoCapture.withOutput<Recorder>(
-            Recorder.Builder()
-                .setExecutor(Executors.newSingleThreadExecutor())
-                .setQualitySelector(QualitySelector.from(Quality.SD,
-                    FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)))
-                .build()
+        return VideoCapture.withOutput(
+            Recorder.Builder().setExecutor(Executors.newSingleThreadExecutor()).setQualitySelector(
+                when (videoCaptureQuality) {
+                    "HD" -> QualitySelector.from(
+                        Quality.HD, FallbackStrategy.lowerQualityOrHigherThan(Quality.HD)
+                    )
+                    "FHD" -> QualitySelector.from(
+                        Quality.FHD, FallbackStrategy.lowerQualityOrHigherThan(Quality.FHD)
+                    )
+                    else -> QualitySelector.from(
+                        Quality.SD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)
+                    )
+                }
+                ).build()
         )
     }
 
@@ -98,6 +171,45 @@ class CameraManager(
             Log.e("CameraManager", "相机状态异常", e)
         } catch (e: Exception) {
             Log.e("CameraManager", "Error binding camera use cases", e)
+        }
+    }
+
+    private fun ensureStorageSpace() {
+        var currentUsageSize = getCurrentStorageUsage()
+        // 如果当前使用空间超过最大限制，删除最早的文件
+        while (currentUsageSize > maxStorageSize) {
+            val oldestFile = getOldestVideoFile() ?: break // 没有可删除的文件
+            val fileSize = oldestFile.length()
+
+            if (oldestFile.delete()) {
+                Log.i("CameraManager", "删除 oldest file: ${oldestFile.name}, size: ${fileSize/1024/1024}MB")
+                currentUsageSize -= fileSize
+            } else {
+                Log.e("CameraManager", "无法删除文件: ${oldestFile.name}")
+                break
+            }
+        }
+    }
+
+    /**
+     * 计算当前存储目录占用的总空间
+     */
+    private fun getCurrentStorageUsage(): Long {
+        return videoStorageDir.listFiles { file ->
+            file.isFile && file.name.startsWith("SECURITY_") && file.name.endsWith(".mp4")
+        }?.sumOf { it.length() } ?: 0L
+    }
+
+    /**
+     * 获取最早创建的视频文件
+     */
+    private fun getOldestVideoFile(): File? {
+        return videoStorageDir.listFiles { file ->
+            file.isFile && file.name.startsWith("SECURITY_") && file.name.endsWith(".mp4")
+        }?.minByOrNull {
+            // 从文件名提取时间戳
+            it.name.substringAfter("SECURITY_").substringBefore(".mp4").toLongOrNull()
+                ?: Long.MAX_VALUE // 无法解析时间戳的文件视为最新
         }
     }
 

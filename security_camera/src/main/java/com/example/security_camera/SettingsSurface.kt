@@ -47,10 +47,10 @@ fun SettingsSurface(
     val openDialog4StorageSpace = remember { mutableStateOf(false) }
     // 视频片段长度，以分钟为单位
     val mutableStateOfVideoClipLength =
-        remember { mutableIntStateOf(sharedPreferences?.getInt("video_clip_length", 3) ?: 3) }
+        remember { mutableIntStateOf(sharedPreferences?.getInt("video_clip_length", 5) ?: 5) }
     // 存储空间，以GB为单位
     val mutableStateOfStorageSpace =
-        remember { mutableIntStateOf(sharedPreferences?.getInt("storage_space", 32) ?: 32) }
+        remember { mutableIntStateOf(sharedPreferences?.getInt("storage_space", 5) ?: 5) }
     // 视频质量格式
     val videoQualityOptions = listOf("SD", "HD", "FHD")
     val mutableVideoQuality =
