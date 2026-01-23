@@ -2,6 +2,7 @@ package com.example.security_camera
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.CountDownTimer
 import android.os.Environment
 import android.util.Log
 import android.util.Size
@@ -34,12 +35,14 @@ import java.util.concurrent.Executors
 class CameraManager(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
-    private val sharedPreferences: SharedPreferences? = null
+    sharedPreferences: SharedPreferences? = null
 ) {
     private val maxStorageSize =
         (sharedPreferences?.getInt("storage_space", 5) ?: 5) * 1024 * 1024 * 1024L
     // 获取视频录制质量
     private val videoCaptureQuality = sharedPreferences?.getString("video_quality", "SD") ?: "SD"
+    // 添加视频片段时长(分钟转毫秒)
+    private val videoClipLength = (sharedPreferences?.getInt("video_clip_length", 5) ?: 5) * 60 * 1000L
 
     private val videoStorageDir by lazy {
         context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)?.apply {
@@ -75,6 +78,18 @@ class CameraManager(
 
     // 添加录制状态跟踪变量
     private var recording: Recording? = null
+    // 添加定时器变量
+    private val recordingTimer = object : CountDownTimer(videoClipLength, 1000) {
+        override fun onTick(millisUntilFinished: Long) {
+            Log.i("CameraManager", "视频片段时长: ${millisUntilFinished / 1000} 秒")
+        }
+
+        override fun onFinish() {
+            // 视频片段录制完成，开始新的录制
+            stopRecord()
+            startRecord()
+        }
+    }
 
     private val preview = getPreview().apply {
         Log.i("CameraManager", "getPreview()")
@@ -94,7 +109,7 @@ class CameraManager(
     /**
      * 开始视频录制
      */
-    fun startVideoCapture() {
+    fun startRecord() {
         // 确保有足够的存储空间，删除最早文件（如果需要）
         ensureStorageSpace()
         // 创建视频存储文件 (使用时间戳确保唯一性)
@@ -109,6 +124,9 @@ class CameraManager(
             recording = videoCapture.output.prepareRecording(context, outputOptions)
                 .start(Executors.newSingleThreadExecutor()
                 ) { recordEventListener }
+            // 启动录制定时器
+            recordingTimer.cancel()
+            recordingTimer.start()
         } catch (e: Exception) {
             Log.e("CameraManager", "视频录制失败", e)
         }
@@ -116,7 +134,8 @@ class CameraManager(
     /**
      * 停止视频录制
      */
-    fun stopVideoCapture() {
+    fun stopRecord() {
+        recordingTimer.cancel()
         recording?.stop()
         recording = null
     }
@@ -212,5 +231,4 @@ class CameraManager(
                 ?: Long.MAX_VALUE // 无法解析时间戳的文件视为最新
         }
     }
-
 }

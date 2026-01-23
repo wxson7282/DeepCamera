@@ -27,11 +27,11 @@ class SecurityCameraViewModel : ViewModel() {
                 emit(
                     when (action) {
                         Action.StartRecord -> run {
-                            cameraManager?.startVideoCapture()
+                            cameraManager?.startRecord()
                             state.copy(isVideoRecoding = true)
                         }
                         Action.StopRecord -> run {
-                            cameraManager?.stopVideoCapture()
+                            cameraManager?.stopRecord()
                             state.copy(isVideoRecoding = false)
                         }
                         Action.TurnOnScreen -> run {
