@@ -29,7 +29,7 @@ fun CameraBody(
 ) {
     val viewState = viewModel<SecurityCameraViewModel>().viewState.value
     ConstraintLayout(
-        modifier = Modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
         val (previewRef, buttonRowRef, videoCaptureBtnRef, screenBtnRef) = createRefs()
         // 预览视图
