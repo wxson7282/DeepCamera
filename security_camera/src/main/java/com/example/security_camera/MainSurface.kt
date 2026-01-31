@@ -34,7 +34,6 @@ fun MainSurface(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val viewModel = viewModel<SecurityCameraViewModel>()
-    val viewState = viewModel.viewState.value
     // 初始化相机管理器
     val cameraManager = remember {
         CameraManager(
@@ -43,6 +42,9 @@ fun MainSurface(
             sharedPreferences = sharedPreferences
         )
     }
+    // 注入相机管理器到 ViewModel
+    viewModel.cameraManager = cameraManager
+    val viewState = viewModel.viewState.value
 
     // 启动异步任务
     LaunchedEffect(Unit) {
@@ -82,8 +84,10 @@ fun MainSurface(
                 onRecordBtnPressed = {
                     if (!viewState.isVideoRecoding) {
                         viewModel.dispatch(Action.StartRecord)
+                        Log.i(logTag, "StartRecord")
                     } else {
                         viewModel.dispatch(Action.StopRecord)
+                        Log.i(logTag, "StopRecord")
                     }
                 },
                 onScreenOffBtnPressed = {

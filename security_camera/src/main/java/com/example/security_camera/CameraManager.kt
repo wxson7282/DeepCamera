@@ -47,7 +47,7 @@ class CameraManager(
     private val videoStorageDir by lazy {
         context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)?.apply {
             if (!exists()) mkdirs() // 确保目录存在
-        } ?: File(context.filesDir, "movies").apply {
+        } ?: File(context.filesDir, "Movies").apply {
             if (!exists()) mkdirs()
         }
     }
@@ -110,6 +110,7 @@ class CameraManager(
      * 开始视频录制
      */
     fun startRecord() {
+        Log.i("CameraManager", "startRecord() is going")
         // 确保有足够的存储空间，删除最早文件（如果需要）
         ensureStorageSpace()
         // 创建视频存储文件 (使用时间戳确保唯一性)
@@ -117,6 +118,7 @@ class CameraManager(
             videoStorageDir,
             "SECURITY_${System.currentTimeMillis()}.mp4"
         )
+        Log.i("CameraManager", "startRecord() videoFile = $videoFile")
         val outputOptions = FileOutputOptions.Builder(videoFile).build()
 
         try {
@@ -125,6 +127,7 @@ class CameraManager(
                 .start(Executors.newSingleThreadExecutor()
                 ) { recordEventListener }
             // 启动录制定时器
+            Log.i("CameraManager", "recordingTimer.start()")
             recordingTimer.cancel()
             recordingTimer.start()
         } catch (e: Exception) {
@@ -194,6 +197,7 @@ class CameraManager(
     }
 
     private fun ensureStorageSpace() {
+        Log.i("CameraManager", "ensureStorageSpace() is going")
         var currentUsageSize = getCurrentStorageUsage()
         // 如果当前使用空间超过最大限制，删除最早的文件
         while (currentUsageSize > maxStorageSize) {

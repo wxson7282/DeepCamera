@@ -1,5 +1,6 @@
 package com.example.security_camera
 
+import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +23,7 @@ class SecurityCameraViewModel : ViewModel() {
         reduce(viewState.value, action)
 
     private fun reduce(state: ViewState, action: Action) {
+        Log.i("SecurityCameraViewModel", "reduce() is going. action = $action")
         viewModelScope.launch {
             withContext(Dispatchers.Default) {
                 emit(
