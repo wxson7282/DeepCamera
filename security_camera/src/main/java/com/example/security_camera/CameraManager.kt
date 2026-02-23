@@ -2,11 +2,16 @@ package com.example.security_camera
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.hardware.camera2.CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES
+import android.hardware.camera2.CaptureRequest
 import android.os.CountDownTimer
 import android.os.Environment
 import android.util.Log
+import android.util.Range
 import android.util.Size
 import androidx.annotation.OptIn
+import androidx.camera.camera2.interop.Camera2CameraInfo
+import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
@@ -145,9 +150,11 @@ class CameraManager(
     fun turnOnScreen() {}
     fun turnOffScreen() {}
 
+    @OptIn(ExperimentalCamera2Interop::class)
     private fun getVideoCapture(): VideoCapture<Recorder> {
-        return VideoCapture.withOutput(
-            Recorder.Builder().setExecutor(Executors.newSingleThreadExecutor()).setQualitySelector(
+        val recorder = Recorder.Builder()
+            .setExecutor(Executors.newSingleThreadExecutor())
+            .setQualitySelector(
                 when (videoCaptureQuality) {
                     "HD" -> QualitySelector.from(
                         Quality.HD, FallbackStrategy.lowerQualityOrHigherThan(Quality.HD)
@@ -159,8 +166,15 @@ class CameraManager(
                         Quality.SD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)
                     )
                 }
-                ).build()
-        )
+            ).build()
+        val videoCaptureBuilder = VideoCapture.Builder(recorder)
+        Camera2Interop.Extender(videoCaptureBuilder)
+            .setCaptureRequestOption(
+                CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                Range(30, 30) // 最小帧率和最大帧率均为 30
+            )
+
+        return videoCaptureBuilder.build()
     }
 
     @OptIn(ExperimentalCamera2Interop::class)
@@ -186,7 +200,17 @@ class CameraManager(
             camera = cameraProvider.bindToLifecycle(
                 lifecycleOwner, cameraSelector, videoCapture, preview
             )
-            Log.i("CameraManager", "bindCameraUseCases()")
+            if (camera == null) {
+                Log.e("CameraManager", "cameraProvider.bindToLifecycle failed")
+                return
+            }
+            else {
+                Log.i("CameraManager", "cameraProvider.bindToLifecycle success")
+                getFpsRanges(camera!!).forEach {range ->
+                    Log.i("CameraManager", "支持的FPS范围: ${range.lower} - ${range.upper} FPS")
+                }
+            }
+
         } catch (e: CameraInfoUnavailableException) {
             Log.e("CameraManager", "无法获取相机信息", e)
         } catch (e: IllegalStateException) {
@@ -234,5 +258,15 @@ class CameraManager(
             it.name.substringAfter("SECURITY_").substringBefore(".mp4").toLongOrNull()
                 ?: Long.MAX_VALUE // 无法解析时间戳的文件视为最新
         }
+    }
+
+    @OptIn(ExperimentalCamera2Interop::class)
+    private fun getFpsRanges(camera: Camera): Array<Range<Int>> {
+        // 获取支持的帧率范围，默认返回 30fps
+        val supportedFpsRanges =
+            Camera2CameraInfo.from(camera.cameraInfo).getCameraCharacteristic(
+                CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES
+            ) ?: arrayOf(Range(30, 30))
+        return supportedFpsRanges
     }
 }
