@@ -35,28 +35,28 @@ fun MainSurface(
     val lifecycleOwner = LocalLifecycleOwner.current
     val viewModel = viewModel<SecurityCameraViewModel>()
     // 初始化相机管理器
-    val cameraManager = remember {
-        CameraManager(
+    val myCameraManager = remember {
+        MyCameraManager(
             context = context,
             lifecycleOwner = lifecycleOwner,
             sharedPreferences = sharedPreferences
         )
     }
     // 注入相机管理器到 ViewModel
-    viewModel.cameraManager = cameraManager
+    viewModel.myCameraManager = myCameraManager
     val viewState = viewModel.viewState.value
 
     // 启动异步任务
     LaunchedEffect(Unit) {
         // 初始化相机
-        cameraManager.initCamera()
+        myCameraManager.initCamera()
         Log.i(logTag, "cameraManager.initCamera()")
     }
 
     // 生命周期管理
     DisposableEffect(Unit) {
         onDispose {
-            cameraManager.release()
+            myCameraManager.release()
             Log.i(logTag, "cameraManager.release()")
         }
     }
@@ -99,7 +99,7 @@ fun MainSurface(
                 }
             ),
             // 注入预览视图到CameraBody的previewView
-            previewView = cameraManager.previewView
+            previewView = myCameraManager.previewView
         )
     }
 }

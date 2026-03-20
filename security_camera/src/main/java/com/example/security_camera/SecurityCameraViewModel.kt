@@ -13,7 +13,7 @@ import kotlinx.coroutines.withContext
 class SecurityCameraViewModel : ViewModel() {
     private val _viewState: MutableState<ViewState> = mutableStateOf(ViewState())
     val viewState : State<ViewState> = _viewState
-    var cameraManager: CameraManager? = null
+    var myCameraManager: MyCameraManager? = null
     data class ViewState (
         val isVideoRecoding: Boolean = false,
         val isScreenOn: Boolean = false
@@ -29,19 +29,19 @@ class SecurityCameraViewModel : ViewModel() {
                 emit(
                     when (action) {
                         Action.StartRecord -> run {
-                            cameraManager?.startRecord()
+                            myCameraManager?.startRecord()
                             state.copy(isVideoRecoding = true)
                         }
                         Action.StopRecord -> run {
-                            cameraManager?.stopRecord()
+                            myCameraManager?.stopRecord()
                             state.copy(isVideoRecoding = false)
                         }
                         Action.TurnOnScreen -> run {
-                            cameraManager?.turnOnScreen()
+                            myCameraManager?.turnOnScreen()
                             state.copy(isScreenOn = true)
                         }
                         Action.TurnOffScreen -> run {
-                            cameraManager?.turnOffScreen()
+                            myCameraManager?.turnOffScreen()
                             state.copy(isScreenOn = false)
                         }
                     },

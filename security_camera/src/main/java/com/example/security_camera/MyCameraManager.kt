@@ -23,7 +23,6 @@ import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
@@ -37,17 +36,20 @@ import androidx.lifecycle.LifecycleOwner
 import java.io.File
 import java.util.concurrent.Executors
 
-class CameraManager(
+class MyCameraManager(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
     sharedPreferences: SharedPreferences? = null
 ) {
     private val maxStorageSize =
         (sharedPreferences?.getInt("storage_space", 5) ?: 5) * 1024 * 1024 * 1024L
+
     // 获取视频录制质量
     private val videoCaptureQuality = sharedPreferences?.getString("video_quality", "SD") ?: "SD"
+
     // 添加视频片段时长(分钟转毫秒)
-    private val videoClipLength = (sharedPreferences?.getInt("video_clip_length", 5) ?: 5) * 60 * 1000L
+    private val videoClipLength =
+        (sharedPreferences?.getInt("video_clip_length", 5) ?: 5) * 60 * 1000L
 
     private val videoStorageDir by lazy {
         context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)?.apply {
@@ -63,6 +65,7 @@ class CameraManager(
     private var cameraProvider: ProcessCameraProvider? = null
     private var camera: Camera? = null
     private val videoCapture = getVideoCapture()
+
     // 视频录制事件监听
     private val recordEventListener = Consumer<VideoRecordEvent> { videoRecordEvent ->
         when (videoRecordEvent) {
@@ -83,6 +86,7 @@ class CameraManager(
 
     // 添加录制状态跟踪变量
     private var recording: Recording? = null
+
     // 添加定时器变量
     private val recordingTimer = object : CountDownTimer(videoClipLength, 1000) {
         override fun onTick(millisUntilFinished: Long) {
@@ -120,16 +124,15 @@ class CameraManager(
         ensureStorageSpace()
         // 创建视频存储文件 (使用时间戳确保唯一性)
         val videoFile = File(
-            videoStorageDir,
-            "SECURITY_${System.currentTimeMillis()}.mp4"
+            videoStorageDir, "SECURITY_${System.currentTimeMillis()}.mp4"
         )
         Log.i("CameraManager", "startRecord() videoFile = $videoFile")
         val outputOptions = FileOutputOptions.Builder(videoFile).build()
 
         try {
             // 启动录制
-            recording = videoCapture.output.prepareRecording(context, outputOptions)
-                .start(Executors.newSingleThreadExecutor()
+            recording = videoCapture.output.prepareRecording(context, outputOptions).start(
+                    Executors.newSingleThreadExecutor()
                 ) { recordEventListener }
             // 启动录制定时器
             Log.i("CameraManager", "recordingTimer.start()")
@@ -139,6 +142,7 @@ class CameraManager(
             Log.e("CameraManager", "视频录制失败", e)
         }
     }
+
     /**
      * 停止视频录制
      */
@@ -147,33 +151,24 @@ class CameraManager(
         recording?.stop()
         recording = null
     }
+
     fun turnOnScreen() {}
     fun turnOffScreen() {}
 
     @OptIn(ExperimentalCamera2Interop::class)
     private fun getVideoCapture(): VideoCapture<Recorder> {
-        val recorder = Recorder.Builder()
-            .setExecutor(Executors.newSingleThreadExecutor())
-            .setQualitySelector(
-                when (videoCaptureQuality) {
-                    "HD" -> QualitySelector.from(
-                        Quality.HD, FallbackStrategy.lowerQualityOrHigherThan(Quality.HD)
-                    )
-                    "FHD" -> QualitySelector.from(
-                        Quality.FHD, FallbackStrategy.lowerQualityOrHigherThan(Quality.FHD)
-                    )
-                    else -> QualitySelector.from(
-                        Quality.SD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)
-                    )
-                }
-            ).build()
+        val recorder =
+            Recorder.Builder().setExecutor(Executors.newSingleThreadExecutor()).setQualitySelector(
+                    when (videoCaptureQuality) {
+                        "HD" -> QualitySelector.from(Quality.HD)
+                        "FHD" -> QualitySelector.from(Quality.FHD)
+                        else -> QualitySelector.from(Quality.SD)
+                    }
+                ).build()
         val videoCaptureBuilder = VideoCapture.Builder(recorder)
-        Camera2Interop.Extender(videoCaptureBuilder)
-            .setCaptureRequestOption(
-                CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-                Range(30, 30) // 最小帧率和最大帧率均为 30
+        Camera2Interop.Extender(videoCaptureBuilder).setCaptureRequestOption(
+                CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(3, 15) // 最小帧率和最大帧率均
             )
-
         return videoCaptureBuilder.build()
     }
 
@@ -203,10 +198,9 @@ class CameraManager(
             if (camera == null) {
                 Log.e("CameraManager", "cameraProvider.bindToLifecycle failed")
                 return
-            }
-            else {
+            } else {
                 Log.i("CameraManager", "cameraProvider.bindToLifecycle success")
-                getFpsRanges(camera!!).forEach {range ->
+                getFpsRanges(camera!!).forEach { range ->
                     Log.i("CameraManager", "支持的FPS范围: ${range.lower} - ${range.upper} FPS")
                 }
             }
@@ -229,7 +223,10 @@ class CameraManager(
             val fileSize = oldestFile.length()
 
             if (oldestFile.delete()) {
-                Log.i("CameraManager", "删除 oldest file: ${oldestFile.name}, size: ${fileSize/1024/1024}MB")
+                Log.i(
+                    "CameraManager",
+                    "删除 oldest file: ${oldestFile.name}, size: ${fileSize / 1024 / 1024}MB"
+                )
                 currentUsageSize -= fileSize
             } else {
                 Log.e("CameraManager", "无法删除文件: ${oldestFile.name}")
@@ -263,10 +260,10 @@ class CameraManager(
     @OptIn(ExperimentalCamera2Interop::class)
     private fun getFpsRanges(camera: Camera): Array<Range<Int>> {
         // 获取支持的帧率范围，默认返回 30fps
-        val supportedFpsRanges =
-            Camera2CameraInfo.from(camera.cameraInfo).getCameraCharacteristic(
-                CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES
-            ) ?: arrayOf(Range(30, 30))
+        val supportedFpsRanges = Camera2CameraInfo.from(camera.cameraInfo).getCameraCharacteristic(
+            CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES
+        ) ?: arrayOf(Range(30, 30))
         return supportedFpsRanges
     }
+
 }
