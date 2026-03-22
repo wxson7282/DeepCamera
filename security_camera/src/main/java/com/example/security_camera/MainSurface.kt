@@ -1,6 +1,5 @@
 package com.example.security_camera
 
-import android.content.SharedPreferences
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
@@ -16,10 +15,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 
@@ -27,21 +23,22 @@ import androidx.navigation.NavController
 @Composable
 fun MainSurface(
     navController: NavController,
-    sharedPreferences: SharedPreferences? = null
+//    sharedPreferences: SharedPreferences? = null,
+    myCameraManager: MyCameraManager
 ) {
     val logTag = "MainSurface"
     Log.i(logTag, "MainSurface start")
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+//    val context = LocalContext.current
+//    val lifecycleOwner = LocalLifecycleOwner.current
     val viewModel = viewModel<SecurityCameraViewModel>()
-    // 初始化相机管理器
-    val myCameraManager = remember {
-        MyCameraManager(
-            context = context,
-            lifecycleOwner = lifecycleOwner,
-            sharedPreferences = sharedPreferences
-        )
-    }
+//    // 初始化相机管理器
+//    val myCameraManager = remember {
+//        MyCameraManager(
+//            context = context,
+//            lifecycleOwner = lifecycleOwner,
+//            sharedPreferences = sharedPreferences
+//        )
+//    }
     // 注入相机管理器到 ViewModel
     viewModel.myCameraManager = myCameraManager
     val viewState = viewModel.viewState.value

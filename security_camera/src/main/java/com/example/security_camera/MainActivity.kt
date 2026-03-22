@@ -27,10 +27,17 @@ class MainActivity : ComponentActivity() {
     private val localContext = staticCompositionLocalOf<Context> {
         error("No context provided")
     }
+    // 初始化相机管理器
+    private lateinit var myCameraManager: MyCameraManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sharedPreferences = getSharedPreferences("security_camera", MODE_PRIVATE)
+        myCameraManager = MyCameraManager(
+            context = this,
+            lifecycleOwner = this@MainActivity,
+            sharedPreferences = sharedPreferences
+        )
 
         if (checkSelfPermission(android.Manifest.permission.CAMERA) !=
             android.content.pm.PackageManager.PERMISSION_GRANTED) {
@@ -83,14 +90,16 @@ class MainActivity : ComponentActivity() {
         NavHost(navController = navController, startDestination = "main") {
             composable("main") {
                 MainSurface(
-                    sharedPreferences = sharedPreferences,
-                    navController = navController
+//                    sharedPreferences = sharedPreferences,
+                    navController = navController,
+                    myCameraManager = myCameraManager
                 )
             }
             composable("settings") {
                 SettingsSurface(
                     navController = navController,
-                    sharedPreferences = sharedPreferences
+                    sharedPreferences = sharedPreferences,
+                    myCameraManager = myCameraManager
                 )
             }
         }

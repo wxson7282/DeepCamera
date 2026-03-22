@@ -195,16 +195,6 @@ class MyCameraManager(
             camera = cameraProvider.bindToLifecycle(
                 lifecycleOwner, cameraSelector, videoCapture, preview
             )
-            if (camera == null) {
-                Log.e("CameraManager", "cameraProvider.bindToLifecycle failed")
-                return
-            } else {
-                Log.i("CameraManager", "cameraProvider.bindToLifecycle success")
-                getFpsRanges(camera!!).forEach { range ->
-                    Log.i("CameraManager", "支持的FPS范围: ${range.lower} - ${range.upper} FPS")
-                }
-            }
-
         } catch (e: CameraInfoUnavailableException) {
             Log.e("CameraManager", "无法获取相机信息", e)
         } catch (e: IllegalStateException) {
@@ -258,8 +248,9 @@ class MyCameraManager(
     }
 
     @OptIn(ExperimentalCamera2Interop::class)
-    private fun getFpsRanges(camera: Camera): Array<Range<Int>> {
+    fun getFpsRanges(): Array<Range<Int>> {
         // 获取支持的帧率范围，默认返回 30fps
+        val camera = camera ?: return arrayOf(Range(30, 30))
         val supportedFpsRanges = Camera2CameraInfo.from(camera.cameraInfo).getCameraCharacteristic(
             CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES
         ) ?: arrayOf(Range(30, 30))
