@@ -206,7 +206,6 @@ fun SettingsSurface(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 // FPS选择下拉框
-                // *******************************************************************************************
                 val fps = mutableFps
                 val fpsOptions = myCameraManager.getFpsRanges()
                 var expanded by remember { mutableStateOf(false) }
@@ -242,7 +241,6 @@ fun SettingsSurface(
                         )
                     }
                 }
-                // *******************************************************************************************
             }
         }
     }
