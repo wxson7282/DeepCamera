@@ -28,17 +28,7 @@ fun MainSurface(
 ) {
     val logTag = "MainSurface"
     Log.i(logTag, "MainSurface start")
-//    val context = LocalContext.current
-//    val lifecycleOwner = LocalLifecycleOwner.current
     val viewModel = viewModel<SecurityCameraViewModel>()
-//    // 初始化相机管理器
-//    val myCameraManager = remember {
-//        MyCameraManager(
-//            context = context,
-//            lifecycleOwner = lifecycleOwner,
-//            sharedPreferences = sharedPreferences
-//        )
-//    }
     // 注入相机管理器到 ViewModel
     viewModel.myCameraManager = myCameraManager
     val viewState = viewModel.viewState.value

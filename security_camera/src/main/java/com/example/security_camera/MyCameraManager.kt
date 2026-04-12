@@ -35,21 +35,21 @@ import androidx.core.util.Consumer
 import androidx.lifecycle.LifecycleOwner
 import java.io.File
 import java.util.concurrent.Executors
+import kotlin.properties.Delegates
 
 class MyCameraManager(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
-    sharedPreferences: SharedPreferences? = null
+    private val sharedPreferences: SharedPreferences? = null
 ) {
-    private val maxStorageSize =
-        (sharedPreferences?.getInt("storage_space", 5) ?: 5) * 1024 * 1024 * 1024L
-
-    // 获取视频录制质量
-    private val videoCaptureQuality = sharedPreferences?.getString("video_quality", "SD") ?: "SD"
-
-    // 添加视频片段时长(分钟转毫秒)
-    private val videoClipLength =
-        (sharedPreferences?.getInt("video_clip_length", 5) ?: 5) * 60 * 1000L
+    // 最大存储空间
+    private var maxStorageSize by Delegates.notNull<Long>()
+    // 视频录制质量
+    private var videoCaptureQuality by Delegates.notNull<String>()
+    // 视频片段时长(分钟转毫秒)
+    private var videoClipLength by Delegates.notNull<Long>()
+    // 视频帧率
+    private var strVideoFps by Delegates.notNull<String>()
 
     private val videoStorageDir by lazy {
         context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)?.apply {
@@ -106,7 +106,17 @@ class MyCameraManager(
         Log.i("CameraManager", "setSurfaceProvider()")
     }
 
+    private fun loadParameters() {
+        // 加载参数
+        maxStorageSize =
+            (sharedPreferences?.getLong("storage_space", 5L) ?: 5L) * 1024 * 1024 * 1024L
+        videoCaptureQuality = sharedPreferences?.getString("video_quality", "SD") ?: "SD"
+        videoClipLength = (sharedPreferences?.getLong("video_clip_length", 5L) ?: 5L) * 60 * 1000L
+        strVideoFps = sharedPreferences?.getString("video_fps", "30-30") ?: "30-30"
+    }
+
     fun initCamera() {
+        loadParameters()
         cameraProvider = cameraProviderFuture.get()
         bindCameraUseCases()
     }
@@ -166,8 +176,13 @@ class MyCameraManager(
                     }
                 ).build()
         val videoCaptureBuilder = VideoCapture.Builder(recorder)
+        // 解析视频帧率字符串为Range<Int>对象
+        val fpsRange: Range<Int> = strVideoFps.split("-").let { parts ->
+            Range(parts[0].toInt(), parts[1].toInt())
+        }
+        Log.i("CameraManager", "fpsRange = $strVideoFps")
         Camera2Interop.Extender(videoCaptureBuilder).setCaptureRequestOption(
-                CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(3, 15) // 最小帧率和最大帧率均
+                CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fpsRange
             )
         return videoCaptureBuilder.build()
     }
