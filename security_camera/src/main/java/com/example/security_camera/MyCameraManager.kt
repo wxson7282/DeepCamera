@@ -64,7 +64,8 @@ class MyCameraManager(
     private val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
     private var cameraProvider: ProcessCameraProvider? = null
     private var camera: Camera? = null
-    private val videoCapture = getVideoCapture()
+    private var capture by Delegates.notNull<VideoCapture<Recorder>>()
+    private var cameraPreview  by Delegates.notNull<Preview>()
 
     // 视频录制事件监听
     private val recordEventListener = Consumer<VideoRecordEvent> { videoRecordEvent ->
@@ -88,31 +89,35 @@ class MyCameraManager(
     private var recording: Recording? = null
 
     // 添加定时器变量
-    private val recordingTimer = object : CountDownTimer(videoClipLength, 1000) {
-        override fun onTick(millisUntilFinished: Long) {
-            Log.i("CameraManager", "视频片段时长: ${millisUntilFinished / 1000} 秒")
-        }
-
-        override fun onFinish() {
-            // 视频片段录制完成，开始新的录制
-            stopRecord()
-            startRecord()
-        }
-    }
-
-    private val preview = getPreview().apply {
-        Log.i("CameraManager", "getPreview()")
-        setSurfaceProvider(previewView.surfaceProvider)
-        Log.i("CameraManager", "setSurfaceProvider()")
-    }
+    private var recordingTimer by Delegates.notNull<CountDownTimer>()
 
     private fun loadParameters() {
         // 加载参数
         maxStorageSize =
-            (sharedPreferences?.getLong("storage_space", 5L) ?: 5L) * 1024 * 1024 * 1024L
+            (sharedPreferences?.getInt("storage_space", 5) ?: 5) * 1024 * 1024 * 1024L
         videoCaptureQuality = sharedPreferences?.getString("video_quality", "SD") ?: "SD"
-        videoClipLength = (sharedPreferences?.getLong("video_clip_length", 5L) ?: 5L) * 60 * 1000L
+        videoClipLength = (sharedPreferences?.getInt("video_clip_length", 5) ?: 5) * 60 * 1000L
         strVideoFps = sharedPreferences?.getString("video_fps", "30-30") ?: "30-30"
+        // 初始化使用上述参数的相关变量
+        capture = getVideoCapture()
+        cameraPreview = getPreview().apply {
+            Log.i("CameraManager", "getPreview()")
+            setSurfaceProvider(previewView.surfaceProvider)
+            Log.i("CameraManager", "setSurfaceProvider()")
+        }
+        recordingTimer = object : CountDownTimer(videoClipLength, 1000) {
+
+            override fun onTick(millisUntilFinished: Long) {
+                Log.i("CameraManager", "视频片段时长: ${millisUntilFinished / 1000} 秒")
+            }
+
+            override fun onFinish() {
+                // 视频片段录制完成，开始新的录制
+                stopRecord()
+                startRecord()
+            }
+        }
+
     }
 
     fun initCamera() {
@@ -141,7 +146,7 @@ class MyCameraManager(
 
         try {
             // 启动录制
-            recording = videoCapture.output.prepareRecording(context, outputOptions).start(
+            recording = capture.output.prepareRecording(context, outputOptions).start(
                     Executors.newSingleThreadExecutor()
                 ) { recordEventListener }
             // 启动录制定时器
@@ -208,7 +213,7 @@ class MyCameraManager(
         try {
             cameraProvider.unbindAll()
             camera = cameraProvider.bindToLifecycle(
-                lifecycleOwner, cameraSelector, videoCapture, preview
+                lifecycleOwner, cameraSelector, capture, cameraPreview
             )
         } catch (e: CameraInfoUnavailableException) {
             Log.e("CameraManager", "无法获取相机信息", e)

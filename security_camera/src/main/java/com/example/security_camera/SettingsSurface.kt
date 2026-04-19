@@ -57,18 +57,39 @@ fun SettingsSurface(
     val openDialog4VideoClipLength = remember { mutableStateOf(false) }
     val openDialog4StorageSpace = remember { mutableStateOf(false) }
     // 视频片段长度，以分钟为单位
-    var mutableStateOfVideoClipLength by
-        remember { mutableIntStateOf(sharedPreferences?.getInt("video_clip_length", 5) ?: 5) }
+    var mutableStateOfVideoClipLength by remember {
+        mutableIntStateOf(
+            sharedPreferences?.getInt(
+                "video_clip_length",
+                5
+            ) ?: 5
+        )
+    }
     // 存储空间，以GB为单位
-    var mutableStateOfStorageSpace by
-        remember { mutableIntStateOf(sharedPreferences?.getInt("storage_space", 5) ?: 5) }
+    var mutableStateOfStorageSpace by remember {
+        mutableIntStateOf(
+            sharedPreferences?.getInt(
+                "storage_space",
+                5
+            ) ?: 5
+        )
+    }
     // 视频质量格式
     val videoQualityOptions = listOf("SD", "HD", "FHD")
-    var mutableVideoQuality by
-        remember { mutableStateOf(sharedPreferences?.getString("video_quality", videoQualityOptions[0]) ?: videoQualityOptions[0]) }
+    var mutableVideoQuality by remember {
+        mutableStateOf(
+            sharedPreferences?.getString(
+                "video_quality",
+                videoQualityOptions[0]
+            ) ?: videoQualityOptions[0]
+        )
+    }
     // 视频帧率
-    var mutableFps by
-        remember { mutableStateOf(sharedPreferences?.getString("fps", "30-30") ?: "30-30") }
+    var mutableFps by remember {
+        mutableStateOf(
+            sharedPreferences?.getString("video_fps", "30-30") ?: "30-30"
+        )
+    }
 
     // 启动异步任务
     LaunchedEffect(Unit) {
@@ -77,12 +98,10 @@ fun SettingsSurface(
         Log.i(logTag, "cameraManager.initCamera()")
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Security Camera Settings") }, navigationIcon = {
+    Scaffold(topBar = {
+        TopAppBar(title = { Text("Security Camera Settings") }, navigationIcon = {
             IconButton(
-                modifier = Modifier.background(MaterialTheme.colorScheme.primary),
-                onClick = {
+                modifier = Modifier.background(MaterialTheme.colorScheme.primary), onClick = {
                     navigateToMain(navController)
                 }) {
                 Icon(
@@ -90,9 +109,8 @@ fun SettingsSurface(
                 )
             }
         })
-    },
-        bottomBar = {
-            BottomAppBar {
+    }, bottomBar = {
+        BottomAppBar {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -102,25 +120,23 @@ fun SettingsSurface(
                     modifier = Modifier.background(MaterialTheme.colorScheme.primary),
                     onClick = {
                         sharedPreferences?.edit {
-                            if (mutableStateOfVideoClipLength in 1..10){
+                            if (mutableStateOfVideoClipLength in 1..10) {
                                 putInt("video_clip_length", mutableStateOfVideoClipLength)
                                 openDialog4VideoClipLength.value = false
-                            }
-                            else {
+                            } else {
                                 openDialog4VideoClipLength.value = true
                                 return@edit
                             }
 
-                            if (mutableStateOfStorageSpace in 1..128){
+                            if (mutableStateOfStorageSpace in 1..128) {
                                 putInt("storage_space", mutableStateOfStorageSpace)
                                 openDialog4StorageSpace.value = false
-                            }
-                            else {
+                            } else {
                                 openDialog4StorageSpace.value = true
                                 return@edit
                             }
                             putString("video_quality", mutableVideoQuality)
-                            putString("fps", mutableFps)
+                            putString("video_fps", mutableFps)
                             navigateToMain(navController)
                         }
                     }) {
@@ -156,9 +172,8 @@ fun SettingsSurface(
                     label = { Text("视频片段长度（1-10分钟）") },
                     value = videoClipLength,
                     onValueChange = { newValue ->
-                        mutableStateOfVideoClipLength = newValue.toIntOrNull()?: 0
-                    }
-                )
+                        mutableStateOfVideoClipLength = newValue.toIntOrNull() ?: 0
+                    })
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -171,9 +186,8 @@ fun SettingsSurface(
                     label = { Text("存储空间（1-128GB）") },
                     value = storageSpace,
                     onValueChange = { newValue ->
-                        mutableStateOfStorageSpace = newValue.toIntOrNull()?: 0
-                    }
-                )
+                        mutableStateOfStorageSpace = newValue.toIntOrNull() ?: 0
+                    })
             }
             Row(
                 modifier = Modifier
@@ -193,8 +207,7 @@ fun SettingsSurface(
                             )
                     ) {
                         RadioButton(
-                            selected = (mutableVideoQuality == text),
-                            onClick = null
+                            selected = (mutableVideoQuality == text), onClick = null
                         )
                         Text(text)
                     }
@@ -211,7 +224,8 @@ fun SettingsSurface(
                 var expanded by remember { mutableStateOf(false) }
                 // 显示当前选中的FPS范围
                 val currentFpsText = remember(fps) {
-                    fpsOptions.find { it.toString() == fps }?.toString() ?: fps
+                    val foundRange =fpsOptions.find { (it.lower.toString() + "-" + it.upper.toString()) == fps }
+                    foundRange?.let {"${it.lower}-${it.upper}" } ?: fps
                 }
                 // 下拉菜单触发按钮
                 OutlinedTextField(
@@ -223,22 +237,18 @@ fun SettingsSurface(
                         IconButton(onClick = { expanded = true }) {
                             Icon(Icons.Filled.ArrowDropDown, contentDescription = "展开FPS选项")
                         }
-                    }
-                )
+                    })
 
                 DropdownMenu(
                     modifier = Modifier.offset(x = 40.dp, y = 0.dp),
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
+                    onDismissRequest = { expanded = false }) {
                     fpsOptions.forEach { fpsRange ->
-                        val text = fpsRange.toString()
-                        DropdownMenuItem(
-                            onClick = {
-                                mutableFps = text
-                                expanded = false },
-                            text = { Text(text) }
-                        )
+                        val text = fpsRange.lower.toString() + "-" + fpsRange.upper.toString()
+                        DropdownMenuItem(onClick = {
+                            mutableFps = text
+                            expanded = false
+                        }, text = { Text(text) })
                     }
                 }
             }
@@ -251,11 +261,10 @@ fun SettingsSurface(
             title = { Text("Error") },
             text = { Text("Please input a number between 1 and 10") },
             confirmButton = {
-                IconButton(onClick = { openDialog4VideoClipLength.value = false}) {
+                IconButton(onClick = { openDialog4VideoClipLength.value = false }) {
                     Icon(Icons.Filled.Done, contentDescription = "OK")
                 }
-            }
-        )
+            })
     }
     if (openDialog4StorageSpace.value) {
         AlertDialog(
@@ -263,11 +272,10 @@ fun SettingsSurface(
             title = { Text("Error") },
             text = { Text("Please input a number between 1 and 128") },
             confirmButton = {
-                IconButton(onClick = { openDialog4StorageSpace.value = false}) {
+                IconButton(onClick = { openDialog4StorageSpace.value = false }) {
                     Icon(Icons.Filled.Done, contentDescription = "OK")
                 }
-            }
-        )
+            })
     }
 }
 
