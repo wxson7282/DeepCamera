@@ -34,6 +34,9 @@ import androidx.camera.view.PreviewView
 import androidx.core.util.Consumer
 import androidx.lifecycle.LifecycleOwner
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.Executors
 import kotlin.properties.Delegates
 
@@ -137,9 +140,11 @@ class MyCameraManager(
         Log.i("CameraManager", "startRecord() is going")
         // 确保有足够的存储空间，删除最早文件（如果需要）
         ensureStorageSpace()
-        // 创建视频存储文件 (使用时间戳确保唯一性)
+        // 创建视频存储文件 (使用时间戳 格式[年月日时分秒毫秒] + .mp4 确保唯一性)
+        val sdf = SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.getDefault())
+        val formattedDateTime = sdf.format(Date())
         val videoFile = File(
-            videoStorageDir, "SECURITY_${System.currentTimeMillis()}.mp4"
+            videoStorageDir, "SECURITY_${formattedDateTime}.mp4"
         )
         Log.i("CameraManager", "startRecord() videoFile = $videoFile")
         val outputOptions = FileOutputOptions.Builder(videoFile).build()
