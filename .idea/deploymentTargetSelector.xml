@@ -27,6 +27,7 @@
       </SelectionState>
       <SelectionState runConfigName="security_camera">
         <option name="selectionMode" value="DROPDOWN" />
+        <DialogSelection />
       </SelectionState>
     </selectionStates>
   </component>
