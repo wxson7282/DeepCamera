@@ -13,6 +13,7 @@ import android.os.HandlerThread
 import android.util.Log
 import android.util.Range
 import android.util.Size
+import android.view.ViewGroup
 import androidx.annotation.OptIn
 import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.Camera2Interop
@@ -92,6 +93,10 @@ class MyCameraManager(
 
     val previewView = PreviewView(context).apply {
         implementationMode = PreviewView.ImplementationMode.PERFORMANCE
+        layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
     }
 
     private val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
