@@ -18,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.security_camera.camera_manager.MyCameraManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

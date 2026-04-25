@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.navigation.NavController
+import com.example.security_camera.camera_manager.MyCameraManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

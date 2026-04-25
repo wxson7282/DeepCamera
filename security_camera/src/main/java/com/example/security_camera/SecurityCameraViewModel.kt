@@ -6,6 +6,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.security_camera.camera_manager.MyCameraManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -37,11 +38,11 @@ class SecurityCameraViewModel : ViewModel() {
                             state.copy(isVideoRecoding = false)
                         }
                         Action.TurnOnScreen -> run {
-                            myCameraManager?.turnOnScreen()
+//                            myCameraManager?.turnOnScreen()
                             state.copy(isScreenOn = true)
                         }
                         Action.TurnOffScreen -> run {
-                            myCameraManager?.turnOffScreen()
+//                            myCameraManager?.turnOffScreen()
                             state.copy(isScreenOn = false)
                         }
                     },

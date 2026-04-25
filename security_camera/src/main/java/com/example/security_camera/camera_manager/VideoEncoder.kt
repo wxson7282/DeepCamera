@@ -64,15 +64,18 @@ class VideoEncoder(
         try {
             // 创建 H.264 编码格式
             val format = MediaFormat.createVideoFormat(MIME_TYPE, width, height).apply {
-                setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+                setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible)
                 setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
                 setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, I_FRAME_INTERVAL)
+                setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline)
+                setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.AVCLevel31)
             }
 
-            // 创建并配置编码器
+            // 创建配置并启动编码器
             mediaCodec = MediaCodec.createEncoderByType(MIME_TYPE).apply {
                 configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+                start()
             }
 
             Log.i(TAG, "编码器初始化成功: ${width}x${height} @ ${frameRate}fps, bitrate=$bitRate")
@@ -102,16 +105,16 @@ class VideoEncoder(
     /**
      * 编码单帧 YUV 数据
      *
-     * @param yuvData YUV 原始数据（YUV420 格式）
+     * @param watermarkedYuv YUV 原始数据（YUV420 格式）
      * @param presentationTimeNs 时间戳（纳秒）
      */
     @SuppressLint("WrongConstant")
-    fun encodeFrame(yuvData: ByteArray, presentationTimeNs: Long) {
+    fun encodeFrame(watermarkedYuv: ByteArray, presentationTimeNs: Long) {
         synchronized(encoderLock) {
             val codec = mediaCodec ?: return
 
             try {
-                // 获取输入缓冲区
+                // 数据出列存入缓冲区
                 val inputBufferIndex = codec.dequeueInputBuffer(TIMEOUT_US)
                 if (inputBufferIndex >= 0) {
                     val inputBuffer = codec.getInputBuffer(inputBufferIndex) ?: return
@@ -119,19 +122,31 @@ class VideoEncoder(
 
                     // 将 YUV 数据写入输入缓冲区
                     val ySize = width * height
-                    val uvSize = ySize / 4
+                    // 检查 YUV 数据大小是否足够
+                    if (watermarkedYuv.size < ySize) {
+                        Log.e(TAG, "YUV数据大小不足，需要至少 $ySize 字节，实际 ${watermarkedYuv.size} 字节")
+                        return
+                    }
+                    val remainingSize = watermarkedYuv.size - ySize
+                    val uvSize = remainingSize / 2
+                    // 检查 UV 数据是否足够
+                    if (remainingSize < uvSize * 2) {
+                        Log.e(TAG, "UV数据大小不足，需要至少 ${uvSize * 2} 字节，实际 $remainingSize 字节")
+                        return
+                    }
 
                     // Y plane
-                    inputBuffer.put(yuvData, 0, ySize)
+                    inputBuffer.put(watermarkedYuv, 0, ySize)
                     // U plane
-                    inputBuffer.put(yuvData, ySize + uvSize, uvSize)
+                    inputBuffer.put(watermarkedYuv, ySize + uvSize, uvSize)
                     // V plane
-                    inputBuffer.put(yuvData, ySize, uvSize)
+                    inputBuffer.put(watermarkedYuv, ySize, uvSize)
 
                     codec.queueInputBuffer(
                         inputBufferIndex,
                         0,
-                        yuvData.size,
+//                        watermarkedYuv.size,
+                        ySize + uvSize + uvSize, // 使用实际写入的大小
                         presentationTimeNs / 1000, // 转换为微秒
                         0
                     )
@@ -154,35 +169,39 @@ class VideoEncoder(
         val bufferInfo = MediaCodec.BufferInfo()
 
         while (true) {
-            val outputBufferIndex = codec.dequeueOutputBuffer(bufferInfo, TIMEOUT_US)
+            try {
+                val outputBufferIndex = codec.dequeueOutputBuffer(bufferInfo, TIMEOUT_US)
+                when {
+                    outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                        val newFormat = codec.outputFormat
+                        Log.i(TAG, "编码器输出格式改变: $newFormat")
 
-            when {
-                outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                    val newFormat = codec.outputFormat
-                    Log.i(TAG, "编码器输出格式改变: $newFormat")
-
-                    synchronized(encoderLock) {
-                        if (!muxerStarted) {
-                            trackIndex = mediaMuxer?.addTrack(newFormat) ?: -1
-                            mediaMuxer?.start()
-                            muxerStarted = true
-                        }
-                    }
-                }
-                outputBufferIndex >= 0 -> {
-                    val outputBuffer = codec.getOutputBuffer(outputBufferIndex) ?: continue
-
-                    if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
                         synchronized(encoderLock) {
-                            if (muxerStarted && trackIndex >= 0) {
-                                mediaMuxer?.writeSampleData(trackIndex, outputBuffer, bufferInfo)
+                            if (!muxerStarted) {
+                                trackIndex = mediaMuxer?.addTrack(newFormat) ?: -1
+                                mediaMuxer?.start()
+                                muxerStarted = true
                             }
                         }
                     }
+                    outputBufferIndex >= 0 -> {
+                        val outputBuffer = codec.getOutputBuffer(outputBufferIndex) ?: continue
 
-                    codec.releaseOutputBuffer(outputBufferIndex, false)
+                        if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
+                            synchronized(encoderLock) {
+                                if (muxerStarted && trackIndex >= 0) {
+                                    mediaMuxer?.writeSampleData(trackIndex, outputBuffer, bufferInfo)
+                                }
+                            }
+                        }
+
+                        codec.releaseOutputBuffer(outputBufferIndex, false)
+                    }
+                    else -> break
                 }
-                else -> break
+            } catch (e: Exception) {
+                Log.e(TAG, "编解码器异常，处理输出缓冲区失败", e)
+                break
             }
         }
     }
@@ -235,27 +254,33 @@ class VideoEncoder(
         var outputDone = false
 
         while (!outputDone) {
-            val outputBufferIndex = mediaCodec?.dequeueOutputBuffer(bufferInfo, TIMEOUT_US) ?: -1
+            try {
+                val outputBufferIndex = mediaCodec?.dequeueOutputBuffer(bufferInfo, TIMEOUT_US) ?: -1
 
-            when {
-                outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER -> {
-                    outputDone = true
-                }
-                outputBufferIndex >= 0 -> {
-                    val outputBuffer = mediaCodec?.getOutputBuffer(outputBufferIndex)
-                    if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
-                        synchronized(encoderLock) {
-                            if (muxerStarted && trackIndex >= 0) {
-                                mediaMuxer?.writeSampleData(trackIndex, outputBuffer!!, bufferInfo)
-                            }
-                        }
-                    }
-                    mediaCodec?.releaseOutputBuffer(outputBufferIndex, false)
-
-                    if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+                when {
+                    outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER -> {
                         outputDone = true
                     }
+                    outputBufferIndex >= 0 -> {
+                        val outputBuffer = mediaCodec?.getOutputBuffer(outputBufferIndex)
+                        if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
+                            synchronized(encoderLock) {
+                                if (muxerStarted && trackIndex >= 0) {
+                                    mediaMuxer?.writeSampleData(trackIndex, outputBuffer!!, bufferInfo)
+                                }
+                            }
+                        }
+                        mediaCodec?.releaseOutputBuffer(outputBufferIndex, false)
+
+                        if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+                            outputDone = true
+                        }
+                    }
+                    else -> outputDone = true
                 }
+            } catch (e: IllegalStateException) {
+                Log.e(TAG, "编解码器状态异常，排空剩余输出失败", e)
+                outputDone = true
             }
         }
     }
