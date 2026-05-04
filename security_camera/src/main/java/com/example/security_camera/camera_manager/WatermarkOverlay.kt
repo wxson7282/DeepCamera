@@ -24,9 +24,16 @@ import java.util.Locale
  * @param height 视频高度
  */
 class WatermarkOverlay(
-    private val width: Int,
-    private val height: Int
+    private val initialWidth: Int,
+    private val initialHeight: Int
 ) {
+    private var width = initialWidth
+    private var height = initialHeight
+    fun updateDimensions(newWidth: Int, newHeight: Int) {
+        width = newWidth
+        height = newHeight
+    }
+
     companion object {
         private const val TAG = "WatermarkOverlay"
 

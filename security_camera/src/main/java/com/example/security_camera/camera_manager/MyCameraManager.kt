@@ -116,8 +116,8 @@ class MyCameraManager(
     private var watermarkOverlay: WatermarkOverlay? = null
     private var encoderThread: HandlerThread? = null
     private var encoderHandler: Handler? = null
-
     // ==================== 初始化 ====================
+    private var yuvInfo: String? = null
 
     /**
      * 加载配置参数
@@ -214,7 +214,7 @@ class MyCameraManager(
         )
         // 设置预览比例
         val aspectRatioStrategy = AspectRatioStrategy(
-            AspectRatio.RATIO_16_9,
+            AspectRatio.RATIO_4_3,
             AspectRatioStrategy.FALLBACK_RULE_AUTO
         )
         // 创建预览选择器
@@ -235,7 +235,7 @@ class MyCameraManager(
             FALLBACK_RULE_CLOSEST_LOWER
         )
         val aspectRatioStrategy = AspectRatioStrategy(
-            AspectRatio.RATIO_16_9,
+            AspectRatio.RATIO_4_3,
             AspectRatioStrategy.FALLBACK_RULE_AUTO
         )
         val resolutionSelector = ResolutionSelector.Builder()
@@ -250,6 +250,22 @@ class MyCameraManager(
             .build()
             .also { analysis ->
                 analysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
+                    // 打印 YUV 信息
+                    if (yuvInfo == null) {
+                        val image = imageProxy.image
+                        if (image != null) {
+                            yuvInfo = " Image Format:" + image.format.toString() + "\n" +
+                                    " Image Width:" + image.width.toString() + "\n" +
+                                    " Image Height:" + image.height.toString() + "\n"
+                            image.planes.forEachIndexed { index, it ->
+                                yuvInfo += " Plane${index} Size:" + it.buffer.capacity().toString() +
+                                        " pixelStride:" + it.pixelStride.toString() +
+                                        " rowStride:" + it.rowStride.toString() + "\n"
+                            }
+                        }
+                        Log.i(TAG, "yuvInfo: ${yuvInfo ?: ""}")
+                    }
+
                     processFrame(imageProxy)
                 }
             }
@@ -283,7 +299,7 @@ class MyCameraManager(
     /**
      * 处理 ImageAnalysis 获取的每一帧
      */
-    @androidx.camera.core.ExperimentalGetImage
+    @ExperimentalGetImage
     private fun processFrame(imageProxy: ImageProxy) {
         if (!isRecording.get()) {
             imageProxy.close()
@@ -308,13 +324,23 @@ class MyCameraManager(
             // 生成水印文本
             val watermarkText = watermarkOverlay?.formatTimestamp(watermarkTime) ?: return
 
+            // 获取实际图像分辨率（新增代码）
+            val actualWidth = imageProxy.width
+            val actualHeight = imageProxy.height
+            // 更新水印叠加器尺寸（新增代码）
+            watermarkOverlay?.updateDimensions(actualWidth, actualHeight)
+
             // 提取 YUV 数据
-            val yuvData = YuvUtils.extractYuv420FromImage(image) ?: run {
+            val yuvData = YuvUtils.extractYUV420SPFromImage(image) ?: run {
                 imageProxy.close()
                 return
             }
 
+//            // 修复UV通道颠倒问题（新增代码）
+//            val fixedYuvData = YuvUtils.swapUVChannels(yuvData, actualWidth, actualHeight)
+
             // 叠加水印
+//            val watermarkedYuv = watermarkOverlay?.overlayWatermark(fixedYuvData, watermarkText) ?: fixedYuvData
             val watermarkedYuv = watermarkOverlay?.overlayWatermark(yuvData, watermarkText) ?: yuvData
 
             // 发送给编码器

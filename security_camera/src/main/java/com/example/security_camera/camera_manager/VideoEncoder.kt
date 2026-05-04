@@ -127,26 +127,26 @@ class VideoEncoder(
                         Log.e(TAG, "YUV数据大小不足，需要至少 $ySize 字节，实际 ${watermarkedYuv.size} 字节")
                         return
                     }
-                    val remainingSize = watermarkedYuv.size - ySize
-                    val uvSize = remainingSize / 2
-                    // 检查 UV 数据是否足够
-                    if (remainingSize < uvSize * 2) {
-                        Log.e(TAG, "UV数据大小不足，需要至少 ${uvSize * 2} 字节，实际 $remainingSize 字节")
-                        return
-                    }
-
+//                    val remainingSize = watermarkedYuv.size - ySize
+                    val uvSize = ySize / 2
+//                    val expectedTotalSize = ySize + uvSize * 2
+//                    // 检查 UV 数据是否足够
+//                    if (watermarkedYuv.size < expectedTotalSize) {
+//                        Log.e(TAG, "YUV422数据大小不足，需要至少 $expectedTotalSize 字节，实际 ${watermarkedYuv.size} 字节")
+//                        return
+//                    }
                     // Y plane
                     inputBuffer.put(watermarkedYuv, 0, ySize)
                     // U plane
-                    inputBuffer.put(watermarkedYuv, ySize + uvSize, uvSize)
-                    // V plane
                     inputBuffer.put(watermarkedYuv, ySize, uvSize)
+//                    // V plane
+//                    inputBuffer.put(watermarkedYuv, ySize + uvSize, uvSize)
 
                     codec.queueInputBuffer(
                         inputBufferIndex,
                         0,
-//                        watermarkedYuv.size,
-                        ySize + uvSize + uvSize, // 使用实际写入的大小
+                        watermarkedYuv.size,
+//                        ySize + uvSize + uvSize, // 使用实际写入的大小
                         presentationTimeNs / 1000, // 转换为微秒
                         0
                     )
