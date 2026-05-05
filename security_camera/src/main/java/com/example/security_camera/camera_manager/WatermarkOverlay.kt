@@ -24,8 +24,8 @@ import java.util.Locale
  * @param height 视频高度
  */
 class WatermarkOverlay(
-    private val initialWidth: Int,
-    private val initialHeight: Int
+    initialWidth: Int,
+    initialHeight: Int
 ) {
     private var width = initialWidth
     private var height = initialHeight

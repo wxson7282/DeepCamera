@@ -91,16 +91,12 @@ class VideoEncoder(
     private fun initMuxer() {
         try {
             mediaMuxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            mediaMuxer?.setOrientationHint(90) // 顺时针旋转 90 度
             Log.i(TAG, "Muxer 初始化成功: ${outputFile.absolutePath}")
         } catch (e: Exception) {
             Log.e(TAG, "Muxer 初始化失败", e)
         }
     }
-
-//    /**
-//     * 获取编码器的输入 Surface
-//     */
-//    fun getInputSurface() = mediaCodec?.createInputSurface()
 
     /**
      * 编码单帧 YUV 数据
@@ -122,25 +118,11 @@ class VideoEncoder(
 
                     // 将 YUV 数据写入输入缓冲区
                     val ySize = width * height
-                    // 检查 YUV 数据大小是否足够
-                    if (watermarkedYuv.size < ySize) {
-                        Log.e(TAG, "YUV数据大小不足，需要至少 $ySize 字节，实际 ${watermarkedYuv.size} 字节")
-                        return
-                    }
-//                    val remainingSize = watermarkedYuv.size - ySize
                     val uvSize = ySize / 2
-//                    val expectedTotalSize = ySize + uvSize * 2
-//                    // 检查 UV 数据是否足够
-//                    if (watermarkedYuv.size < expectedTotalSize) {
-//                        Log.e(TAG, "YUV422数据大小不足，需要至少 $expectedTotalSize 字节，实际 ${watermarkedYuv.size} 字节")
-//                        return
-//                    }
                     // Y plane
                     inputBuffer.put(watermarkedYuv, 0, ySize)
-                    // U plane
+                    // UV plane
                     inputBuffer.put(watermarkedYuv, ySize, uvSize)
-//                    // V plane
-//                    inputBuffer.put(watermarkedYuv, ySize + uvSize, uvSize)
 
                     codec.queueInputBuffer(
                         inputBufferIndex,
@@ -205,19 +187,6 @@ class VideoEncoder(
             }
         }
     }
-
-//    /**
-//     * 刷新编码器缓冲区
-//     */
-//    fun flush() {
-//        synchronized(encoderLock) {
-//            try {
-//                mediaCodec?.flush()
-//            } catch (e: Exception) {
-//                Log.e(TAG, "刷新编码器失败", e)
-//            }
-//        }
-//    }
 
     /**
      * 停止编码并写入结束标记

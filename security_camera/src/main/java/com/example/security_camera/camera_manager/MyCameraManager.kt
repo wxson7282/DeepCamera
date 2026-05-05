@@ -4,8 +4,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.hardware.camera2.CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES
 import android.hardware.camera2.CaptureRequest
-import android.media.MediaCodecList
-import android.media.MediaFormat
 import android.os.CountDownTimer
 import android.os.Environment
 import android.os.Handler
@@ -69,8 +67,6 @@ class MyCameraManager(
     companion object {
         private const val TAG = "MyCameraManager"
 
-        // 编码器 MIME 类型
-        const val MIME_TYPE = MediaFormat.MIMETYPE_VIDEO_AVC
     }
 
     // ==================== 配置参数 ====================
@@ -336,11 +332,7 @@ class MyCameraManager(
                 return
             }
 
-//            // 修复UV通道颠倒问题（新增代码）
-//            val fixedYuvData = YuvUtils.swapUVChannels(yuvData, actualWidth, actualHeight)
-
             // 叠加水印
-//            val watermarkedYuv = watermarkOverlay?.overlayWatermark(fixedYuvData, watermarkText) ?: fixedYuvData
             val watermarkedYuv = watermarkOverlay?.overlayWatermark(yuvData, watermarkText) ?: yuvData
 
             // 发送给编码器
@@ -524,20 +516,4 @@ class MyCameraManager(
         ) ?: arrayOf(Range(30, 30))
     }
 
-    /**
-     * 检查编码器是否可用
-     */
-    fun isEncoderAvailable(): Boolean {
-        val codecList = MediaCodecList(MediaCodecList.REGULAR_CODECS)
-        return codecList.codecInfos.any { codecInfo ->
-            !codecInfo.isEncoder && codecInfo.supportedTypes.any {
-                it.equals(MIME_TYPE, ignoreCase = true)
-            }
-        }
-    }
-
-    /**
-     * 获取当前录制状态
-     */
-    fun isCurrentlyRecording(): Boolean = isRecording.get()
 }
