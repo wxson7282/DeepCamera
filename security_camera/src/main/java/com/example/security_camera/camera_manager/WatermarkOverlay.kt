@@ -40,9 +40,8 @@ class WatermarkOverlay(
         // 水印配置常量
         const val TEXT_SIZE_RATIO = 0.018f      // 文字大小占视频高度的比例（缩小）
         const val MARGIN_RATIO = 0.015f         // 边距占视频宽度的比例（缩小）
-        const val PADDING = 6                   // 水印内边距（缩小）
+        const val PADDING = 4                   // 水印内边距
         const val BG_DARKEN_RATIO = 0.25f       // 背景压暗比例（0=全透, 1=全黑）
-        const val TEXT_BLEND_RATIO = 1.0f       // 文字混合比例（1.0=硬切，无渐变）
 
         // 时间格式
         var DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
@@ -63,6 +62,9 @@ class WatermarkOverlay(
     private var fixedBgLeft = 0
     private var fixedBgTop = 0
 
+    // 统一的 textSize（initResources 和 overlayWatermark 共用）
+    private var calculatedTextSize = 0f
+
     // 水印锁
     private val lock = Any()
 
@@ -75,9 +77,10 @@ class WatermarkOverlay(
      */
     private fun initResources() {
         // 创建水印 Paint（关闭抗锯齿和阴影，确保边缘硬切清晰）
+        calculatedTextSize = (height * TEXT_SIZE_RATIO).coerceAtLeast(16f)
         watermarkPaint = Paint().apply {
             color = Color.WHITE
-            textSize = (height * TEXT_SIZE_RATIO).coerceAtLeast(16f)
+            textSize = calculatedTextSize
             typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
             isAntiAlias = false     // 关闭抗锯齿，避免边缘半透明像素
             clearShadowLayer()      // 关闭阴影，避免模糊扩散
@@ -93,9 +96,10 @@ class WatermarkOverlay(
         val textWidth = watermarkPaint?.measureText(templateText)?.toInt() ?: textBounds.width()
         val textHeight = textBounds.height()
 
-        // Bitmap 宽度用 measureText 结果 + 充足余量，确保不裁字
-        val bitmapWidth = (textWidth + PADDING * 4).coerceAtMost(width)
-        val bitmapHeight = (textHeight + PADDING * 4).coerceAtMost(height)
+        // Bitmap 宽度 = 文字宽度 + 左padding + 右padding + 额外安全余量
+        // 不限制 coerceAtMost，宁可 Bitmap 大一点也不能裁字
+        val bitmapWidth = textWidth + PADDING * 3 + 8
+        val bitmapHeight = textHeight + PADDING * 3 + 8
 
         // 释放旧的 Bitmap
         watermarkBitmap?.recycle()
@@ -139,10 +143,9 @@ class WatermarkOverlay(
         val bitmap = watermarkBitmap ?: return yuvData
         val canvas = watermarkCanvas ?: return yuvData
 
-        val textSize = (height * TEXT_SIZE_RATIO).coerceAtLeast(24f)
-
         synchronized(lock) {
-            paint.textSize = textSize
+            // ★ 统一使用 initResources 算好的 textSize，不能重新算
+            paint.textSize = calculatedTextSize
 
             val drawWidth = fixedWatermarkWidth.coerceAtMost(bitmap.width)
             val drawHeight = fixedWatermarkHeight.coerceAtMost(bitmap.height)
@@ -191,9 +194,9 @@ class WatermarkOverlay(
         val retain = 1.0f - darken
 
         for (y in bgTop until (bgTop + areaHeight)) {
-            if (y !in 0..<height) continue
+            if (y !in 0 until height) continue
             for (x in bgLeft until (bgLeft + areaWidth)) {
-                if (x !in 0..<width) continue
+                if (x !in 0 until width) continue
 
                 // Y 平面 - 压暗
                 val yIndex = y * width + x
@@ -253,9 +256,9 @@ class WatermarkOverlay(
         val whiteV = 128
 
         for (y in bgTop until (bgTop + areaHeight)) {
-            if (y !in 0..<height) continue
+            if (y !in 0 until height) continue
             for (x in bgLeft until (bgLeft + areaWidth)) {
-                if (x !in 0..<width) continue
+                if (x !in 0 until width) continue
 
                 val wx = x - bgLeft
                 val wy = y - bgTop

@@ -308,22 +308,17 @@ class MyCameraManager(
                 return
             }
 
-            // 计算带水印的时间戳
-            val frameTimestamp = imageProxy.imageInfo.timestamp / 1_000_000 // 纳秒转毫秒
-            val startTime = recordingStartTime.get()
-            val watermarkTime = if (startTime > 0) {
-                startTime + frameTimestamp
-            } else {
-                System.currentTimeMillis()
-            }
+            // ★ 水印时间直接用系统当前时间
+            // imageInfo.timestamp 是相机传感器时钟（类似 System.nanoTime()，从开机算起），
+            // 不是 Unix 时间戳，不能加到 System.currentTimeMillis() 上
+            val watermarkTime = System.currentTimeMillis()
 
             // 生成水印文本
             val watermarkText = watermarkOverlay?.formatTimestamp(watermarkTime) ?: return
 
-            // 获取实际图像分辨率（新增代码）
+            // 获取实际图像分辨率
             val actualWidth = imageProxy.width
             val actualHeight = imageProxy.height
-            // 更新水印叠加器尺寸（新增代码）
             watermarkOverlay?.updateDimensions(actualWidth, actualHeight)
 
             // 提取 YUV 数据
@@ -335,8 +330,8 @@ class MyCameraManager(
             // 叠加水印
             val watermarkedYuv = watermarkOverlay?.overlayWatermark(yuvData, watermarkText) ?: yuvData
 
-            // 发送给编码器
-            videoEncoder?.encodeFrame(watermarkedYuv, frameTimestamp * 1_000_000) // 转回纳秒
+            // 编码器时间戳仍用帧原始时间戳（用于音视频同步，不影响水印）
+            videoEncoder?.encodeFrame(watermarkedYuv, imageProxy.imageInfo.timestamp)
 
         } catch (e: Exception) {
             Log.e(TAG, "处理帧失败", e)
