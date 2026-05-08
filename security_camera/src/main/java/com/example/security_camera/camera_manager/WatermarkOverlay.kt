@@ -42,6 +42,7 @@ class WatermarkOverlay(
         const val MARGIN_RATIO = 0.015f         // 边距占视频宽度的比例（缩小）
         const val PADDING = 6                   // 水印内边距（缩小）
         const val BG_DARKEN_RATIO = 0.25f       // 背景压暗比例（0=全透, 1=全黑）
+        const val TEXT_BLEND_RATIO = 1.0f       // 文字混合比例（1.0=硬切，无渐变）
 
         // 时间格式
         var DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
@@ -87,19 +88,24 @@ class WatermarkOverlay(
         val textBounds = android.graphics.Rect()
         watermarkPaint?.getTextBounds(templateText, 0, templateText.length, textBounds)
 
-        // Bitmap 仅用于文字，宽高按模板文字来
-        val bitmapWidth = (textBounds.width() + PADDING * 4).coerceAtMost(width)
-        val bitmapHeight = (textBounds.height() + PADDING * 4).coerceAtMost(height)
+        // ★ 用 measureText() 算宽度，比 getTextBounds().width() 更准
+        // getTextBounds 只量墨迹边界，实际渲染可能更宽，关闭抗锯齿后尤其容易裁边
+        val textWidth = watermarkPaint?.measureText(templateText)?.toInt() ?: textBounds.width()
+        val textHeight = textBounds.height()
+
+        // Bitmap 宽度用 measureText 结果 + 充足余量，确保不裁字
+        val bitmapWidth = (textWidth + PADDING * 4).coerceAtMost(width)
+        val bitmapHeight = (textHeight + PADDING * 4).coerceAtMost(height)
 
         // 释放旧的 Bitmap
         watermarkBitmap?.recycle()
         watermarkBitmap = createBitmap(bitmapWidth, bitmapHeight)
         watermarkCanvas = Canvas(watermarkBitmap!!)
 
-        // 用模板文字算出固定的水印区域位置
+        // 水印区域也用 measureText 宽度，保证背景和文字对齐
         val margin = (width * MARGIN_RATIO).toInt()
-        fixedWatermarkWidth = textBounds.width() + PADDING * 2
-        fixedWatermarkHeight = textBounds.height() + PADDING * 2
+        fixedWatermarkWidth = textWidth + PADDING * 2
+        fixedWatermarkHeight = textHeight + PADDING * 2
         fixedBgLeft = width - fixedWatermarkWidth - margin
         fixedBgTop = height - fixedWatermarkHeight - margin
 
