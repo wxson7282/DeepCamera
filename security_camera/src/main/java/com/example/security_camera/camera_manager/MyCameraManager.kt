@@ -3,7 +3,6 @@ package com.example.security_camera.camera_manager
 import android.content.Context
 import android.content.SharedPreferences
 import android.hardware.camera2.CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES
-import android.hardware.camera2.CaptureRequest
 import android.os.CountDownTimer
 import android.os.Environment
 import android.os.Handler
@@ -14,7 +13,6 @@ import android.util.Size
 import android.view.ViewGroup
 import androidx.annotation.OptIn
 import androidx.camera.camera2.interop.Camera2CameraInfo
-import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
@@ -30,9 +28,6 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.Quality
-import androidx.camera.video.QualitySelector
-import androidx.camera.video.Recorder
-import androidx.camera.video.VideoCapture
 import androidx.camera.view.PreviewView
 import androidx.lifecycle.LifecycleOwner
 import java.io.File
@@ -98,7 +93,6 @@ class MyCameraManager(
     private val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
     private var cameraProvider: ProcessCameraProvider? = null
     private var camera: Camera? = null
-    private var capture by Delegates.notNull<VideoCapture<Recorder>>()
     private var cameraPreview by Delegates.notNull<Preview>()
     private var imageAnalysis by Delegates.notNull<ImageAnalysis>()
 
@@ -106,6 +100,10 @@ class MyCameraManager(
     private var recordingTimer by Delegates.notNull<CountDownTimer>()
     private val isRecording = AtomicBoolean(false)
     private val recordingStartTime = AtomicLong(0)
+
+    // ==================== 帧率控制 ====================
+    private var lastEncodedFrameTime = AtomicLong(0)  // 上一帧编码时的系统时间
+    private var frameIntervalMs = 0L                   // 目标帧间隔（毫秒）
 
     // ==================== 编码器和水印模块 ====================
     private var videoEncoder: VideoEncoder? = null
@@ -137,9 +135,10 @@ class MyCameraManager(
         frameRate = strVideoFps.split("-").let { parts ->
             parts.getOrNull(0)?.toIntOrNull() ?: 30
         }
+        // 计算目标帧间隔（毫秒），用于丢帧控制
+        frameIntervalMs = 1000L / frameRate
 
         // 初始化 CameraX 组件
-        capture = createVideoCapture()
         cameraPreview = createPreview().apply {
             // 使用previewView作为预览表面
             setSurfaceProvider(previewView.surfaceProvider)
@@ -174,33 +173,6 @@ class MyCameraManager(
     }
 
     // ==================== CameraX 组件创建 ====================
-
-    @OptIn(ExperimentalCamera2Interop::class)
-    private fun createVideoCapture(): VideoCapture<Recorder> {
-        val quality = when (videoCaptureQuality) {
-            "HD" -> Quality.HD
-            "FHD" -> Quality.FHD
-            else -> Quality.SD
-        }
-        // 创建 Recorder 实例
-        val recorder = Recorder.Builder()
-            .setExecutor(Executors.newSingleThreadExecutor())
-            .setQualitySelector(QualitySelector.from(quality))
-            .build()
-        // 创建 VideoCapture 实例
-        val videoCaptureBuilder = VideoCapture.Builder(recorder)
-        // 设置帧率范围
-        val fpsRange: Range<Int> = strVideoFps.split("-").let { parts ->
-            Range(parts[0].toInt(), parts[1].toInt())
-        }
-        // 应用帧率范围
-        Camera2Interop.Extender(videoCaptureBuilder).setCaptureRequestOption(
-            CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fpsRange
-        )
-        // 返回 VideoCapture 实例
-        return videoCaptureBuilder.build()
-    }
-
     @OptIn(ExperimentalCamera2Interop::class)
     private fun createPreview(): Preview {
         // 设置预览分辨率
@@ -276,7 +248,6 @@ class MyCameraManager(
             camera = provider.bindToLifecycle(
                 lifecycleOwner,
                 cameraSelector,
-                capture,
                 cameraPreview,
                 imageAnalysis
             )
@@ -301,6 +272,15 @@ class MyCameraManager(
             imageProxy.close()
             return
         }
+
+        // ★ 帧率控制：按目标帧间隔丢帧
+        val now = System.currentTimeMillis()
+        val lastTime = lastEncodedFrameTime.get()
+        if (lastTime > 0 && (now - lastTime) < frameIntervalMs) {
+            imageProxy.close()
+            return  // 距离上一帧不够一个帧间隔，丢弃
+        }
+        lastEncodedFrameTime.set(now)
 
         try {
             val image = imageProxy.image ?: run {
@@ -330,8 +310,13 @@ class MyCameraManager(
             // 叠加水印
             val watermarkedYuv = watermarkOverlay?.overlayWatermark(yuvData, watermarkText) ?: yuvData
 
-            // 编码器时间戳仍用帧原始时间戳（用于音视频同步，不影响水印）
-            videoEncoder?.encodeFrame(watermarkedYuv, imageProxy.imageInfo.timestamp)
+            // 编码器时间戳：用帧序号 × 帧间隔，确保 PTS 严格单调递增
+            // 丢帧后相机原始时间戳不连续，可能导致编码器异常
+            val frameIndex = lastEncodedFrameTime.get().let {
+                ((it - recordingStartTime.get()) / frameIntervalMs).coerceAtLeast(0)
+            }
+            val presentationTimeNs = frameIndex * frameIntervalMs * 1_000_000L  // 毫秒→纳秒
+            videoEncoder?.encodeFrame(watermarkedYuv, presentationTimeNs)
 
         } catch (e: Exception) {
             Log.e(TAG, "处理帧失败", e)
