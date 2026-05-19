@@ -32,7 +32,7 @@ class VideoEncoder(
 ) {
     companion object {
         private const val TAG = "VideoEncoder"
-        const val MIME_TYPE = MediaFormat.MIMETYPE_VIDEO_AVC
+//        const val MIME_TYPE = MediaFormat.MIMETYPE_VIDEO_AVC
         const val I_FRAME_INTERVAL = 1 // I 帧间隔（秒）
         const val TIMEOUT_US = 10000L
     }
@@ -52,6 +52,15 @@ class VideoEncoder(
     // 编码器锁
     private val encoderLock = Any()
 
+    // 编码器MIME类型
+    private val mimeType = if (HevcSupportUtils.isHevcEncoderSupportedForSize(width, height, bitRate, frameRate)) {
+        Log.i(TAG, "使用 HEVC H265 编码器")
+        MediaFormat.MIMETYPE_VIDEO_HEVC
+    } else {
+        Log.i(TAG, "使用 AVC H264 编码器")
+        MediaFormat.MIMETYPE_VIDEO_AVC
+    }
+
     init {
         initEncoder()
         initMuxer()
@@ -62,8 +71,8 @@ class VideoEncoder(
      */
     private fun initEncoder() {
         try {
-            // 创建 H.264 编码格式
-            val format = MediaFormat.createVideoFormat(MIME_TYPE, width, height).apply {
+            // 创建视频编码格式
+            val format = MediaFormat.createVideoFormat(mimeType, width, height).apply {
                 setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible)
                 setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
                 setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
@@ -73,7 +82,7 @@ class VideoEncoder(
             }
 
             // 创建配置并启动编码器
-            mediaCodec = MediaCodec.createEncoderByType(MIME_TYPE).apply {
+            mediaCodec = MediaCodec.createEncoderByType(mimeType).apply {
                 configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
                 start()
             }
