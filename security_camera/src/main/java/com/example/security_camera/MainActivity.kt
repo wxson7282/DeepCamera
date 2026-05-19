@@ -91,7 +91,6 @@ class MainActivity : ComponentActivity() {
         NavHost(navController = navController, startDestination = "main") {
             composable("main") {
                 MainSurface(
-//                    sharedPreferences = sharedPreferences,
                     navController = navController,
                     myCameraManager = myCameraManager
                 )

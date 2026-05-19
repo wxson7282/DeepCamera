@@ -24,7 +24,6 @@ import com.example.security_camera.camera_manager.MyCameraManager
 @Composable
 fun MainSurface(
     navController: NavController,
-//    sharedPreferences: SharedPreferences? = null,
     myCameraManager: MyCameraManager
 ) {
     val logTag = "MainSurface"

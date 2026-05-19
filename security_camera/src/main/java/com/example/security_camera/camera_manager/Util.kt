@@ -1,4 +1,4 @@
-package com.example.security_camera
+package com.example.security_camera.camera_manager
 
 import android.content.Context
 import android.util.Size
@@ -10,10 +10,8 @@ import androidx.camera.core.Preview
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
-import androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER
 import androidx.camera.video.Recorder
 import androidx.camera.video.VideoCapture
-
 
 object Util {
 
@@ -24,7 +22,8 @@ object Util {
     @OptIn(ExperimentalCamera2Interop::class)
     fun getPreview(): Preview {
         // 定义ResolutionStrategy
-        val resolutionStrategy = ResolutionStrategy(Size(1920, 1080), FALLBACK_RULE_CLOSEST_LOWER)
+        val resolutionStrategy =
+            ResolutionStrategy(Size(1920, 1080), ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER)
         // 定义AspectRatioStrategy
         val aspectRatioStrategy =
             AspectRatioStrategy(AspectRatio.RATIO_16_9, AspectRatioStrategy.FALLBACK_RULE_AUTO)
