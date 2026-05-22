@@ -137,7 +137,6 @@ class VideoEncoder(
                         inputBufferIndex,
                         0,
                         watermarkedYuv.size,
-//                        ySize + uvSize + uvSize, // 使用实际写入的大小
                         presentationTimeNs / 1000, // 转换为微秒
                         0
                     )

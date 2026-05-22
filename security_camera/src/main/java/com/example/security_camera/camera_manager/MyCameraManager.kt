@@ -135,8 +135,8 @@ class MyCameraManager(
         frameRate = strVideoFps.split("-").let { parts ->
             parts.getOrNull(0)?.toIntOrNull() ?: 30
         }
-        // 计算目标帧间隔（毫秒），用于丢帧控制
-        frameIntervalMs = 1000L / frameRate
+        // 计算目标帧间隔（毫秒），用于丢帧控制，减去16ms（编码时间）
+        frameIntervalMs = 1000L / frameRate - 16L
 
         // 初始化 CameraX 组件
         cameraPreview = createPreview().apply {
@@ -274,13 +274,16 @@ class MyCameraManager(
         }
 
         // ★ 帧率控制：按目标帧间隔丢帧
-        val now = System.currentTimeMillis()
-        val lastTime = lastEncodedFrameTime.get()
-        if (lastTime > 0 && (now - lastTime) < frameIntervalMs) {
-            imageProxy.close()
-            return  // 距离上一帧不够一个帧间隔，丢弃
+        // 考虑处理所需时间，如果帧率大于20fps，不做任何处理
+        if (frameRate < 20) {
+            val now = System.currentTimeMillis()
+            val lastTime = lastEncodedFrameTime.get()
+            if (lastTime > 0 && (now - lastTime) < frameIntervalMs) {
+                imageProxy.close()
+                return  // 距离上一帧不够一个帧间隔，丢弃
+            }
+            lastEncodedFrameTime.set(now)
         }
-        lastEncodedFrameTime.set(now)
 
         try {
             val image = imageProxy.image ?: run {
@@ -310,12 +313,7 @@ class MyCameraManager(
             // 叠加水印
             val watermarkedYuv = watermarkOverlay?.overlayWatermark(yuvData, watermarkText) ?: yuvData
 
-            // 编码器时间戳：用帧序号 × 帧间隔，确保 PTS 严格单调递增
-            // 丢帧后相机原始时间戳不连续，可能导致编码器异常
-            val frameIndex = lastEncodedFrameTime.get().let {
-                ((it - recordingStartTime.get()) / frameIntervalMs).coerceAtLeast(0)
-            }
-            val presentationTimeNs = frameIndex * frameIntervalMs * 1_000_000L  // 毫秒→纳秒
+            val presentationTimeNs = System.nanoTime()
             videoEncoder?.encodeFrame(watermarkedYuv, presentationTimeNs)
 
         } catch (e: Exception) {
