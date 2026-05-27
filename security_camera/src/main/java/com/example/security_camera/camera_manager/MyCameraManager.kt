@@ -30,6 +30,8 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.Quality
 import androidx.camera.view.PreviewView
 import androidx.lifecycle.LifecycleOwner
+import com.example.security_camera.streaming.StreamManager
+import com.example.security_camera.streaming.VideoStreamService
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -40,19 +42,20 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlin.properties.Delegates
 
 /**
- * MyCameraManager - 精简版主管理类
+ * MyCameraManager - 主管理类
  *
  * 职责：
  * 1. CameraX 初始化和生命周期管理
  * 2. Preview + ImageAnalysis UseCase 配置
  * 3. 录制控制逻辑
  * 4. 存储空间管理
- * 5. 协调 VideoEncoder 和 WatermarkOverlay 模块工作
+ * 5. 协调 VideoEncoder、WatermarkOverlay 和 StreamManager 模块工作
  *
  * 模块依赖关系：
- * - VideoEncoder: 负责 H.264 编码和 MP4 封装
+ * - VideoEncoder: 负责 H.264/H.265 编码和 MP4 封装
  * - WatermarkOverlay: 负责在 YUV 数据上叠加水印
- * - YuvUtils: YUV 格式处理工具（可选）
+ * - YuvUtils: YUV 格式处理工具
+ * - StreamManager: 负责网络流传输（WebSocket）
  */
 class MyCameraManager(
     private val context: Context,
@@ -61,7 +64,6 @@ class MyCameraManager(
 ) {
     companion object {
         private const val TAG = "MyCameraManager"
-
     }
 
     // ==================== 配置参数 ====================
@@ -102,16 +104,22 @@ class MyCameraManager(
     private val recordingStartTime = AtomicLong(0)
 
     // ==================== 帧率控制 ====================
-    private var lastEncodedFrameTime = AtomicLong(0)  // 上一帧编码时的系统时间
-    private var frameIntervalMs = 0L                   // 目标帧间隔（毫秒）
+    private var lastEncodedFrameTime = AtomicLong(0)
+    private var frameIntervalMs = 0L
 
     // ==================== 编码器和水印模块 ====================
     private var videoEncoder: VideoEncoder? = null
     private var watermarkOverlay: WatermarkOverlay? = null
     private var encoderThread: HandlerThread? = null
     private var encoderHandler: Handler? = null
-    // ==================== 初始化 ====================
+
+    // ==================== 流传输状态 ====================
+    @Volatile
+    private var isStreamingEnabled = false
+
     private var yuvInfo: String? = null
+
+    // ==================== 初始化 ====================
 
     /**
      * 加载配置参数
@@ -122,7 +130,6 @@ class MyCameraManager(
         videoClipLength = (sharedPreferences?.getInt("video_clip_length", 5) ?: 5) * 60 * 1000L
         strVideoFps = sharedPreferences?.getString("video_fps", "30-30") ?: "30-30"
 
-        // 解析分辨率
         val (_, width, height) = when (videoCaptureQuality) {
             "HD" -> Triple(Quality.HD, 1280, 720)
             "FHD" -> Triple(Quality.FHD, 1920, 1080)
@@ -131,24 +138,17 @@ class MyCameraManager(
         videoWidth = width
         videoHeight = height
 
-        // 解析帧率
         frameRate = strVideoFps.split("-").let { parts ->
             parts.getOrNull(0)?.toIntOrNull() ?: 30
         }
-        // 计算目标帧间隔（毫秒），用于丢帧控制，减去16ms（编码时间）
         frameIntervalMs = 1000L / frameRate - 16L
 
-        // 初始化 CameraX 组件
         cameraPreview = createPreview().apply {
-            // 使用previewView作为预览表面
             setSurfaceProvider(previewView.surfaceProvider)
         }
         imageAnalysis = createImageAnalysis()
 
-        // 初始化水印模块
         watermarkOverlay = WatermarkOverlay(videoWidth, videoHeight)
-
-        // 创建录制定时器
         recordingTimer = createRecordingTimer()
     }
 
@@ -166,6 +166,7 @@ class MyCameraManager(
      */
     fun release() {
         stopRecord()
+        stopStreaming()
         cameraProvider?.unbindAll()
         releaseEncoder()
         watermarkOverlay?.release()
@@ -173,24 +174,21 @@ class MyCameraManager(
     }
 
     // ==================== CameraX 组件创建 ====================
+
     @OptIn(ExperimentalCamera2Interop::class)
     private fun createPreview(): Preview {
-        // 设置预览分辨率
         val resolutionStrategy = ResolutionStrategy(
             Size(videoWidth, videoHeight),
             FALLBACK_RULE_CLOSEST_LOWER
         )
-        // 设置预览比例
         val aspectRatioStrategy = AspectRatioStrategy(
             AspectRatio.RATIO_4_3,
             AspectRatioStrategy.FALLBACK_RULE_AUTO
         )
-        // 创建预览选择器
         val resolutionSelector = ResolutionSelector.Builder()
             .setAspectRatioStrategy(aspectRatioStrategy)
             .setResolutionStrategy(resolutionStrategy)
             .build()
-        // 创建 Preview 实例
         return Preview.Builder()
             .setResolutionSelector(resolutionSelector)
             .build()
@@ -218,7 +216,6 @@ class MyCameraManager(
             .build()
             .also { analysis ->
                 analysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
-                    // 打印 YUV 信息
                     if (yuvInfo == null) {
                         val image = imageProxy.image
                         if (image != null) {
@@ -233,7 +230,6 @@ class MyCameraManager(
                         }
                         Log.i(TAG, "yuvInfo: ${yuvInfo ?: ""}")
                     }
-
                     processFrame(imageProxy)
                 }
             }
@@ -263,9 +259,6 @@ class MyCameraManager(
 
     // ==================== 帧处理 ====================
 
-    /**
-     * 处理 ImageAnalysis 获取的每一帧
-     */
     @ExperimentalGetImage
     private fun processFrame(imageProxy: ImageProxy) {
         if (!isRecording.get()) {
@@ -273,14 +266,12 @@ class MyCameraManager(
             return
         }
 
-        // ★ 帧率控制：按目标帧间隔丢帧
-        // 考虑处理所需时间，如果帧率大于20fps，不做任何处理
         if (frameRate < 20) {
             val now = System.currentTimeMillis()
             val lastTime = lastEncodedFrameTime.get()
             if (lastTime > 0 && (now - lastTime) < frameIntervalMs) {
                 imageProxy.close()
-                return  // 距离上一帧不够一个帧间隔，丢弃
+                return
             }
             lastEncodedFrameTime.set(now)
         }
@@ -291,26 +282,18 @@ class MyCameraManager(
                 return
             }
 
-            // ★ 水印时间直接用系统当前时间
-            // imageInfo.timestamp 是相机传感器时钟（类似 System.nanoTime()，从开机算起），
-            // 不是 Unix 时间戳，不能加到 System.currentTimeMillis() 上
             val watermarkTime = System.currentTimeMillis()
-
-            // 生成水印文本
             val watermarkText = watermarkOverlay?.formatTimestamp(watermarkTime) ?: return
 
-            // 获取实际图像分辨率
             val actualWidth = imageProxy.width
             val actualHeight = imageProxy.height
             watermarkOverlay?.updateDimensions(actualWidth, actualHeight)
 
-            // 提取 YUV 数据
             val yuvData = YuvUtils.extractYUV420SPFromImage(image) ?: run {
                 imageProxy.close()
                 return
             }
 
-            // 叠加水印
             val watermarkedYuv = watermarkOverlay?.overlayWatermark(yuvData, watermarkText) ?: yuvData
 
             val presentationTimeNs = System.nanoTime()
@@ -325,17 +308,12 @@ class MyCameraManager(
 
     // ==================== 录制控制 ====================
 
-    /**
-     * 创建录制定时器（用于分段录制）
-     */
     private fun createRecordingTimer(): CountDownTimer {
         return object : CountDownTimer(videoClipLength, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 Log.i(TAG, "视频片段时长: ${millisUntilFinished / 1000} 秒")
             }
-
             override fun onFinish() {
-                // 片段录制完成，重新开始新片段
                 stopRecord()
                 startRecord()
             }
@@ -348,10 +326,8 @@ class MyCameraManager(
     fun startRecord() {
         Log.i(TAG, "startRecord() 开始")
 
-        // 确保存储空间
         ensureStorageSpace()
 
-        // 创建视频文件
         val sdf = SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.getDefault())
         val formattedDateTime = sdf.format(Date())
         val videoFile = File(
@@ -359,16 +335,13 @@ class MyCameraManager(
         )
         Log.i(TAG, "视频文件: ${videoFile.absolutePath}")
 
-        // 启动编码线程
         encoderThread = HandlerThread("VideoEncoderThread").apply {
             start()
             encoderHandler = Handler(looper)
         }
 
-        // 计算码率
         val bitRate = calculateBitRate()
 
-        // 在编码线程中初始化编码器
         encoderHandler?.post {
             videoEncoder = VideoEncoder(
                 width = videoWidth,
@@ -377,13 +350,21 @@ class MyCameraManager(
                 bitRate = bitRate,
                 outputFile = videoFile
             )
+
+            // ★ 如果流传输已启用，设置监听器
+            if (isStreamingEnabled) {
+                videoEncoder?.setEncodedDataListener(StreamManager.getInstance())
+            }
         }
 
-        // 设置录制状态
         recordingStartTime.set(System.currentTimeMillis())
         isRecording.set(true)
 
-        // 启动定时器
+        // ★ 如果流传输已启用，确保服务运行
+        if (isStreamingEnabled) {
+            ensureStreamServiceRunning()
+        }
+
         recordingTimer.cancel()
         recordingTimer.start()
 
@@ -399,12 +380,10 @@ class MyCameraManager(
         recordingTimer.cancel()
         isRecording.set(false)
 
-        // 停止编码器
         videoEncoder?.stop()
         videoEncoder?.release()
         videoEncoder = null
 
-        // 停止编码线程
         encoderThread?.quitSafely()
         encoderThread = null
         encoderHandler = null
@@ -414,20 +393,14 @@ class MyCameraManager(
         Log.i(TAG, "stopRecord() 完成")
     }
 
-    /**
-     * 计算视频码率
-     */
     private fun calculateBitRate(): Int {
         return when (videoCaptureQuality) {
-            "FHD" -> 8_000_000  // 8 Mbps
-            "HD" -> 4_000_000   // 4 Mbps
-            else -> 2_000_000   // 2 Mbps
+            "FHD" -> 8_000_000
+            "HD" -> 4_000_000
+            else -> 2_000_000
         }
     }
 
-    /**
-     * 释放编码器资源
-     */
     private fun releaseEncoder() {
         videoEncoder?.stop()
         videoEncoder?.release()
@@ -438,11 +411,71 @@ class MyCameraManager(
         encoderHandler = null
     }
 
-    // ==================== 存储管理 ====================
+    // ==================== 流传输控制 ====================
 
     /**
-     * 确保有足够的存储空间
+     * 启动流传输
+     *
+     * 启动 WebSocket 服务器，如正在录制则同时挂载编码数据监听器。
      */
+    fun startStreaming() {
+        if (isStreamingEnabled) {
+            Log.w(TAG, "流传输已启用")
+            return
+        }
+        isStreamingEnabled = true
+
+        // 启动 WebSocket 服务器
+        ensureStreamServiceRunning()
+
+        // 如正在录制，立即设置监听器
+        if (isRecording.get()) {
+            encoderHandler?.post {
+                videoEncoder?.setEncodedDataListener(StreamManager.getInstance())
+            }
+        }
+
+        Log.i(TAG, "流传输已启用")
+    }
+
+    /**
+     * 停止流传输
+     */
+    fun stopStreaming() {
+        if (!isStreamingEnabled) {
+            return
+        }
+        isStreamingEnabled = false
+
+        // 移除编码器监听器
+        videoEncoder?.setEncodedDataListener(null)
+
+        // 停止 WebSocket 服务器和服务
+        StreamManager.getInstance().stop()
+        VideoStreamService.stop(context)
+
+        Log.i(TAG, "流传输已停止")
+    }
+
+    /**
+     * 查询流传输是否启用
+     */
+    fun isStreaming(): Boolean = isStreamingEnabled
+
+    /**
+     * 查询是否有客户端连接
+     */
+    fun getStreamClientCount(): Int = StreamManager.getInstance().getConnectedClientCount()
+
+    private fun ensureStreamServiceRunning() {
+        if (!StreamManager.getInstance().isRunning()) {
+            StreamManager.getInstance().start()
+            VideoStreamService.start(context)
+        }
+    }
+
+    // ==================== 存储管理 ====================
+
     private fun ensureStorageSpace() {
         Log.i(TAG, "检查存储空间")
         var currentUsage = getCurrentStorageUsage()
@@ -461,18 +494,12 @@ class MyCameraManager(
         }
     }
 
-    /**
-     * 获取当前存储使用量
-     */
     private fun getCurrentStorageUsage(): Long {
         return videoStorageDir.listFiles { file ->
             file.isFile && file.name.startsWith("SECURITY_") && file.name.endsWith(".mp4")
         }?.sumOf { it.length() } ?: 0L
     }
 
-    /**
-     * 获取最旧的视频文件
-     */
     private fun getOldestVideoFile(): File? {
         return videoStorageDir.listFiles { file ->
             file.isFile && file.name.startsWith("SECURITY_") && file.name.endsWith(".mp4")
@@ -483,9 +510,6 @@ class MyCameraManager(
 
     // ==================== 公开方法 ====================
 
-    /**
-     * 获取支持的帧率范围
-     */
     @OptIn(ExperimentalCamera2Interop::class)
     fun getFpsRanges(): Array<Range<Int>> {
         val cam = camera ?: return arrayOf(Range(30, 30))
@@ -493,5 +517,4 @@ class MyCameraManager(
             CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES
         ) ?: arrayOf(Range(30, 30))
     }
-
 }

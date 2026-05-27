@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.security_camera"
+    namespace = "com.example.security_monitor"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.security_camera"
+        applicationId = "com.example.security_monitor"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -40,30 +40,21 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.camerax.core)
-    implementation(libs.androidx.camerax.camera2)
-    implementation(libs.androidx.camerax.lifecycle)
-    implementation(libs.androidx.camerax.view)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.material3)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-    implementation(libs.androidx.navigation.compose)
-    implementation(libs.androidx.navigation.runtime.ktx)
-    implementation(libs.navigation.runtime.ktx)
-    implementation(libs.constraintlayout)
-    implementation(libs.java.websocket)
+    implementation(libs.squareup.okhttp3)
     testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    debugImplementation(libs.androidx.ui.tooling)
 }

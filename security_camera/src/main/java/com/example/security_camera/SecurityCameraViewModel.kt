@@ -13,11 +13,14 @@ import kotlinx.coroutines.withContext
 
 class SecurityCameraViewModel : ViewModel() {
     private val _viewState: MutableState<ViewState> = mutableStateOf(ViewState())
-    val viewState : State<ViewState> = _viewState
+    val viewState: State<ViewState> = _viewState
     var myCameraManager: MyCameraManager? = null
-    data class ViewState (
+
+    data class ViewState(
         val isVideoRecoding: Boolean = false,
-        val isScreenOn: Boolean = false
+        val isScreenOn: Boolean = false,
+        val isStreaming: Boolean = false,
+        val streamClientCount: Int = 0
     )
 
     fun dispatch(action: Action) =
@@ -38,16 +41,32 @@ class SecurityCameraViewModel : ViewModel() {
                             state.copy(isVideoRecoding = false)
                         }
                         Action.TurnOnScreen -> run {
-//                            myCameraManager?.turnOnScreen()
                             state.copy(isScreenOn = true)
                         }
                         Action.TurnOffScreen -> run {
-//                            myCameraManager?.turnOffScreen()
                             state.copy(isScreenOn = false)
+                        }
+                        Action.StartStream -> run {
+                            myCameraManager?.startStreaming()
+                            state.copy(isStreaming = true)
+                        }
+                        Action.StopStream -> run {
+                            myCameraManager?.stopStreaming()
+                            state.copy(isStreaming = false, streamClientCount = 0)
                         }
                     },
                 )
             }
+        }
+    }
+
+    /**
+     * 更新流客户端数量（由 UI 定时轮询调用）
+     */
+    fun updateStreamClientCount() {
+        val count = myCameraManager?.getStreamClientCount() ?: 0
+        if (_viewState.value.streamClientCount != count) {
+            _viewState.value = _viewState.value.copy(streamClientCount = count)
         }
     }
 
@@ -61,4 +80,6 @@ sealed interface Action {
     object StopRecord : Action
     object TurnOffScreen : Action
     object TurnOnScreen : Action
+    object StartStream : Action
+    object StopStream : Action
 }

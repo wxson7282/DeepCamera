@@ -1,5 +1,3 @@
-@file:Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
-
 package com.example.security_camera
 
 import androidx.camera.view.PreviewView
@@ -31,7 +29,7 @@ fun CameraBody(
     ConstraintLayout(
         modifier = modifier.fillMaxSize()
     ) {
-        val (previewRef, buttonRowRef, videoCaptureBtnRef, screenBtnRef) = createRefs()
+        val (previewRef, buttonRowRef) = createRefs()
         // 预览视图
         AndroidView(factory = { previewView }, modifier = Modifier.constrainAs(previewRef) {
             top.linkTo(parent.top)
@@ -47,9 +45,21 @@ fun CameraBody(
                 end.linkTo(parent.end)
             }
             .fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+
+            // ★ 流传输按钮
+            IconButton(
+                onClick = { clickable.onStreamBtnPressed() }) {
+                Icon(
+                    imageVector = if (viewState.isStreaming) ImageVector.vectorResource(R.drawable.screen_share_off)
+                    else ImageVector.vectorResource(R.drawable.screen_share),
+                    contentDescription = "Stream",
+                    tint = if (viewState.isStreaming) Color(0xFF4CAF50) else Color.White
+                )
+            }
+
+            // 录像按钮
             val mutableInteractionSource = remember { MutableInteractionSource() }
             val isPressed = mutableInteractionSource.collectIsPressedAsState().value
-            // 定义录像按钮
             IconButton(
                 onClick = { clickable.onRecordBtnPressed() }) {
                 Icon(
@@ -59,6 +69,8 @@ fun CameraBody(
                     tint = Color(red = 255, green = 0, blue = 0)
                 )
             }
+
+            // 息屏按钮
             IconButton(
                 onClick = { clickable.onScreenOffBtnPressed() }) {
                 Icon(

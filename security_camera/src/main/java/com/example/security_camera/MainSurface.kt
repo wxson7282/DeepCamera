@@ -29,15 +29,21 @@ fun MainSurface(
     val logTag = "MainSurface"
     Log.i(logTag, "MainSurface start")
     val viewModel = viewModel<SecurityCameraViewModel>()
-    // 注入相机管理器到 ViewModel
     viewModel.myCameraManager = myCameraManager
     val viewState = viewModel.viewState.value
 
     // 启动异步任务
     LaunchedEffect(Unit) {
-        // 初始化相机
         myCameraManager.initCamera()
         Log.i(logTag, "cameraManager.initCamera()")
+    }
+
+    // ★ 定时更新流客户端数量
+    LaunchedEffect(viewState.isStreaming) {
+        while (viewState.isStreaming) {
+            viewModel.updateStreamClientCount()
+            kotlinx.coroutines.delay(2000)
+        }
     }
 
     // 生命周期管理
@@ -49,10 +55,12 @@ fun MainSurface(
     }
 
     Scaffold(
-        // 顶部导航栏
         topBar = {
             TopAppBar(
-                title = { Text("Security Camera") },
+                title = {
+                    Text("Security Camera" +
+                            if (viewState.isStreaming) " · ${viewState.streamClientCount}个客户端" else "")
+                },
                 navigationIcon = {
                     IconButton(
                         modifier = Modifier.background(MaterialTheme.colorScheme.primary),
@@ -66,15 +74,12 @@ fun MainSurface(
     ) { paddingValues ->
         CameraBody(
             modifier = Modifier.padding(paddingValues),
-            // 注入点击事件相应
             clickable = combinedClickable(
                 onRecordBtnPressed = {
                     if (!viewState.isVideoRecoding) {
                         viewModel.dispatch(Action.StartRecord)
-                        Log.i(logTag, "StartRecord")
                     } else {
                         viewModel.dispatch(Action.StopRecord)
-                        Log.i(logTag, "StopRecord")
                     }
                 },
                 onScreenOffBtnPressed = {
@@ -83,23 +88,31 @@ fun MainSurface(
                     } else {
                         viewModel.dispatch(Action.TurnOffScreen)
                     }
+                },
+                onStreamBtnPressed = {
+                    if (!viewState.isStreaming) {
+                        viewModel.dispatch(Action.StartStream)
+                    } else {
+                        viewModel.dispatch(Action.StopStream)
+                    }
                 }
             ),
-            // 注入预览视图到CameraBody的previewView
             previewView = myCameraManager.previewView
         )
     }
 }
 
-data class Clickable (
-    val onRecordBtnPressed : () -> Unit,
-    val onScreenOffBtnPressed : () -> Unit
+data class Clickable(
+    val onRecordBtnPressed: () -> Unit,
+    val onScreenOffBtnPressed: () -> Unit,
+    val onStreamBtnPressed: () -> Unit = {}
 )
 
 fun combinedClickable(
-    onRecordBtnPressed : () -> Unit = {},
-    onScreenOffBtnPressed : () -> Unit = {}
-) = Clickable(onRecordBtnPressed, onScreenOffBtnPressed)
+    onRecordBtnPressed: () -> Unit = {},
+    onScreenOffBtnPressed: () -> Unit = {},
+    onStreamBtnPressed: () -> Unit = {}
+) = Clickable(onRecordBtnPressed, onScreenOffBtnPressed, onStreamBtnPressed)
 
 private fun navigateToSettings(navController: NavController) {
     navController.navigate("settings") {
