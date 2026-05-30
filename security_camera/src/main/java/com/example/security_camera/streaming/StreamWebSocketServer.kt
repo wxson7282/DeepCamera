@@ -89,9 +89,6 @@ class StreamWebSocketServer(port: Int = DEFAULT_PORT) :
         }
     }
 
-//    fun isServerRunning(): Boolean = StreamManager.getInstance().isRunning()
-//    fun isServerRunning() = this.isOpen || this.isStarting
-
     fun getConnectedClientCount(): Int = connections.size
 
     // ==================== WebSocket 回调 ====================
@@ -101,23 +98,42 @@ class StreamWebSocketServer(port: Int = DEFAULT_PORT) :
 
         // 向新客户端发送缓存的编码器配置
         synchronized(clientLock) {
-            // 发送 JSON 配置
-            val configJson = buildConfigJson()
-            if (configJson != null) {
-                conn.send(configJson)
-                Log.d(TAG, "已发送配置给新客户端")
-            }
+//            // 发送 JSON 配置
+//            val configJson = buildConfigJson()
+//            if (configJson != null) {
+//                conn.send(configJson)
+//                Log.d(TAG, "已发送配置给新客户端")
+//            }
+            // ★ 发送一个简化的 config JSON 就行，告诉解码器宽高和格式
+            val simpleConfig = """{
+            "type":"config",
+            "mime":"video/avc",
+            "width":640,
+            "height":480
+            }""".trimIndent()
+            conn.send(simpleConfig)
+            Log.i(TAG, "已发送简化配置 JSON")
 
-            // 发送缓存的 codec config 帧（SPS/PPS NAL）
+//            // 发送缓存的 codec config 帧（SPS/PPS NAL）
+//            val configData = cachedCodecConfigData
+//            if (configData != null) {
+//                val frame = buildBinaryFrame(
+//                    FRAME_TYPE_CONFIG,
+//                    cachedCodecConfigPts,
+//                    configData
+//                )
+//                conn.send(frame)
+//                Log.d(TAG, "已发送 codec config 帧给新客户端")
+//            }
+            // ★ 真正的 sps/pps 在这个二进制帧里，解码器靠它初始化
             val configData = cachedCodecConfigData
             if (configData != null) {
-                val frame = buildBinaryFrame(
-                    FRAME_TYPE_CONFIG,
-                    cachedCodecConfigPts,
-                    configData
-                )
+                val frame = buildBinaryFrame(FRAME_TYPE_CONFIG, 0, configData)
                 conn.send(frame)
-                Log.d(TAG, "已发送 codec config 帧给新客户端")
+                Log.i(TAG, "已发送 codec config 二进制帧")
+            } else {
+                Log.w(TAG, "⚠️ configData 还是 null，等第一帧出来再补发")
+                // 等第一帧编码出来会自动广播，客户端那时就能收到
             }
         }
     }
