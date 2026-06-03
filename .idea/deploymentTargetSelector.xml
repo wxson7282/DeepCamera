@@ -27,7 +27,7 @@
       </SelectionState>
       <SelectionState runConfigName="security_camera">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-05-30T02:05:50.614950200Z">
+        <DropdownSelection timestamp="2026-05-30T12:45:08.900696300Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=28247f32" />

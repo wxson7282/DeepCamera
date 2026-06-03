@@ -49,7 +49,8 @@ import kotlin.properties.Delegates
  * 2. Preview + ImageAnalysis UseCase 配置
  * 3. 录制控制逻辑
  * 4. 存储空间管理
- * 5. 协调 VideoEncoder、WatermarkOverlay 和 StreamManager 模块工作
+ * 5. 流传输管理
+ * 6. 协调 VideoEncoder、WatermarkOverlay 和 StreamManager 模块工作
  *
  * 模块依赖关系：
  * - VideoEncoder: 负责 H.264/H.265 编码和 MP4 封装
@@ -112,6 +113,7 @@ class MyCameraManager(
     private var watermarkOverlay: WatermarkOverlay? = null
     private var encoderThread: HandlerThread? = null
     private var encoderHandler: Handler? = null
+    private val isEncoderInitialized = AtomicBoolean(false)
 
     // ==================== 流传输状态 ====================
     @Volatile
@@ -152,11 +154,30 @@ class MyCameraManager(
         recordingTimer = createRecordingTimer()
     }
 
+    private fun createEncoder() {
+        encoderThread = HandlerThread("VideoEncoderThread").apply {
+            start()
+            encoderHandler = Handler(looper)
+        }
+        val bitRate = calculateBitRate()
+        encoderHandler?.post {
+            videoEncoder = VideoEncoder(
+                width = videoWidth,
+                height = videoHeight,
+                frameRate = frameRate,
+                bitRate = bitRate
+            )
+            // 编码器创建完成后更新状态
+            isEncoderInitialized.set(true)
+        }
+    }
+
     /**
      * 初始化相机
      */
     fun initCamera() {
         loadParameters()
+        createEncoder()
         cameraProvider = cameraProviderFuture.get()
         bindCameraUseCases()
     }
@@ -261,11 +282,18 @@ class MyCameraManager(
 
     @ExperimentalGetImage
     private fun processFrame(imageProxy: ImageProxy) {
-        if (!isRecording.get()) {
+        // 检查是否正在录制或传输
+        if (!isRecording.get() && !isStreaming()) {
             imageProxy.close()
             return
         }
-
+        // 编码器初始化检查
+        if (!isEncoderInitialized.get()) {
+            Log.w(TAG, "视频编码器尚未初始化，跳过当前帧")
+            imageProxy.close()
+            return
+        }
+        // 低帧率时限制处理频率
         if (frameRate < 20) {
             val now = System.currentTimeMillis()
             val lastTime = lastEncodedFrameTime.get()
@@ -277,6 +305,7 @@ class MyCameraManager(
         }
 
         try {
+            Log.d(TAG, "processFrame try start")
             val image = imageProxy.image ?: run {
                 imageProxy.close()
                 return
@@ -298,7 +327,7 @@ class MyCameraManager(
 
             val presentationTimeNs = System.nanoTime()
             videoEncoder?.encodeFrame(watermarkedYuv, presentationTimeNs)
-
+            Log.d(TAG, "processFrame try end")
         } catch (e: Exception) {
             Log.e(TAG, "处理帧失败", e)
         } finally {
@@ -335,28 +364,6 @@ class MyCameraManager(
         )
         Log.i(TAG, "视频文件: ${videoFile.absolutePath}")
 
-        encoderThread = HandlerThread("VideoEncoderThread").apply {
-            start()
-            encoderHandler = Handler(looper)
-        }
-
-        val bitRate = calculateBitRate()
-
-        encoderHandler?.post {
-            videoEncoder = VideoEncoder(
-                width = videoWidth,
-                height = videoHeight,
-                frameRate = frameRate,
-                bitRate = bitRate,
-                outputFile = videoFile
-            )
-
-            // ★ 如果流传输已启用，设置监听器
-            if (isStreamingEnabled) {
-                videoEncoder?.setEncodedDataListener(StreamManager.getInstance())
-            }
-        }
-
         recordingStartTime.set(System.currentTimeMillis())
         isRecording.set(true)
 
@@ -364,6 +371,8 @@ class MyCameraManager(
         if (isStreamingEnabled) {
             ensureStreamServiceRunning()
         }
+
+        encoderHandler?.post { videoEncoder?.startFileOutput(videoFile) }
 
         recordingTimer.cancel()
         recordingTimer.start()
@@ -380,13 +389,7 @@ class MyCameraManager(
         recordingTimer.cancel()
         isRecording.set(false)
 
-        videoEncoder?.stop()
-        videoEncoder?.release()
-        videoEncoder = null
-
-        encoderThread?.quitSafely()
-        encoderThread = null
-        encoderHandler = null
+        encoderHandler?.post { videoEncoder?.stopFileOutput() }
 
         recordingStartTime.set(0)
 
@@ -428,11 +431,8 @@ class MyCameraManager(
         // 启动 WebSocket 服务器
         ensureStreamServiceRunning()
 
-        // 如正在录制，立即设置监听器
-        if (isRecording.get()) {
-            encoderHandler?.post {
-                videoEncoder?.setEncodedDataListener(StreamManager.getInstance())
-            }
+        encoderHandler?.post {
+            videoEncoder?.setEncodedDataListener(StreamManager.getInstance())
         }
 
         Log.i(TAG, "流传输已启用")
