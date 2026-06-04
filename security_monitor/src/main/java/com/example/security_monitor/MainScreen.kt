@@ -1,5 +1,6 @@
 package com.example.security_monitor
 
+import android.content.SharedPreferences
 import android.view.SurfaceView
 import android.view.ViewGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -29,12 +30,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.edit
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(viewModel: StreamViewModel = viewModel()) {
+fun MainScreen(
+    sharedPreferences: SharedPreferences? = null, viewModel: StreamViewModel = viewModel()
+) {
+
     val viewState = viewModel.viewState.value
+
+    var mutableStateOfServerAddress by remember {
+        mutableStateOf(
+            sharedPreferences?.getString(
+                "server_address", "192.168.1.100:8080"
+            ) ?: "192.168.1.100:8080"
+        )
+    }
 
     // SurfaceView 用于渲染解码后的视频
     var surfaceView by remember { mutableStateOf<SurfaceView?>(null) }
@@ -57,12 +70,11 @@ fun MainScreen(viewModel: StreamViewModel = viewModel()) {
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Security Monitor" +
-                            if (viewState.isConnected) " · 已连接" else "")
-                }
-            )
-        }
-    ) { paddingValues ->
+                    Text(
+                        "Security Monitor" + if (viewState.isConnected) " · 已连接" else ""
+                    )
+                })
+        }) { paddingValues ->
         Column(
             modifier = Modifier
                 .padding(paddingValues)
@@ -72,8 +84,7 @@ fun MainScreen(viewModel: StreamViewModel = viewModel()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
+                    .weight(1f), contentAlignment = Alignment.Center
             ) {
                 if (viewState.isConnected) {
                     AndroidView(
@@ -85,8 +96,7 @@ fun MainScreen(viewModel: StreamViewModel = viewModel()) {
                                 )
                                 surfaceView = this
                             }
-                        },
-                        modifier = Modifier.fillMaxSize()
+                        }, modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     Text(
@@ -106,11 +116,13 @@ fun MainScreen(viewModel: StreamViewModel = viewModel()) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // IP 地址输入
+                val serverAddress = mutableStateOfServerAddress
                 OutlinedTextField(
-                    value = viewState.serverAddress,
-                    onValueChange = { viewModel.updateServerAddress(it) },
+                    value = serverAddress,
+                    onValueChange = {
+                        mutableStateOfServerAddress = it
+                    },
                     label = { Text("服务器地址") },
-                    placeholder = { Text("192.168.1.100:8080") },
                     enabled = !viewState.isConnected,
                     modifier = Modifier.weight(1f),
                     singleLine = true
@@ -122,13 +134,18 @@ fun MainScreen(viewModel: StreamViewModel = viewModel()) {
                         if (viewState.isConnected) {
                             viewModel.disconnect()
                         } else {
-                            viewModel.connect(viewState.serverAddress)
+                            // 保存服务器地址到 SharedPreferences
+                            sharedPreferences?.edit {
+                                putString("server_address", serverAddress)
+                            }
+                            viewModel.updateServerAddress(serverAddress)
+                            viewModel.connect(serverAddress)
                         }
                     },
-                    colors = if (viewState.isConnected)
-                        ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935))
-                    else
-                        ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                    colors = if (viewState.isConnected) ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFE53935)
+                    )
+                    else ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                 ) {
                     Text(if (viewState.isConnected) "断开" else "连接")
                 }

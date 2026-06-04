@@ -1,6 +1,7 @@
 package com.example.security_monitor
 
 import android.Manifest
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -12,6 +13,7 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
 
+    private lateinit var sharedPreferences: SharedPreferences
     private val showDeniedDialog = mutableStateOf(false)
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -25,6 +27,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        sharedPreferences = getSharedPreferences("security_monitor", MODE_PRIVATE)
+
         // 检查网络权限
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET)
             != PackageManager.PERMISSION_GRANTED
@@ -34,7 +38,7 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            MainScreen()
+            MainScreen(sharedPreferences = sharedPreferences)
         }
     }
 }
