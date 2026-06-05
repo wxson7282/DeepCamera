@@ -53,7 +53,7 @@ class StreamViewModel : ViewModel() {
                 _viewState.value = _viewState.value.copy(
                     videoWidth = width,
                     videoHeight = height,
-                    codecName = if (mime.contains("hevc", ignoreCase = true)) "H265" else "H264"
+                    codecName = if (mime.contains("HEVC", ignoreCase = true)) "H265" else "H264"
                 )
                 // 配置解码器
                 streamDecoder?.configure(mime, width, height, csd0, csd1)

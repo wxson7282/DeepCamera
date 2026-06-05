@@ -36,8 +36,8 @@ class StreamClient(
     companion object {
         private const val TAG = "StreamClient"
         const val FRAME_TYPE_CONFIG = 0x01
-        const val FRAME_TYPE_KEY_FRAME = 0x02
-        const val FRAME_TYPE_P_FRAME = 0x03
+//        const val FRAME_TYPE_KEY_FRAME = 0x02
+//        const val FRAME_TYPE_P_FRAME = 0x03
     }
 
     private val client = OkHttpClient.Builder()
@@ -65,6 +65,7 @@ class StreamClient(
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 try {
+                    Log.i(TAG, "收到文本消息: $text")
                     handleTextMessage(text)
                 } catch (e: Exception) {
                     Log.e(TAG, "处理文本消息失败", e)
@@ -73,6 +74,7 @@ class StreamClient(
 
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
                 try {
+                    Log.i(TAG, "收到二进制消息: ${bytes.size}")
                     handleBinaryMessage(bytes)
                 } catch (e: Exception) {
                     Log.e(TAG, "处理二进制消息失败", e)
@@ -109,15 +111,13 @@ class StreamClient(
         Log.i(TAG, "已断开连接")
     }
 
-    fun isConnected(): Boolean = isConnected
+//    fun isConnected(): Boolean = isConnected
 
     // ==================== 消息处理 ====================
 
     private fun handleTextMessage(text: String) {
         val json = JSONObject(text)
-        val type = json.optString("type")
-
-        when (type) {
+        when (val type = json.optString("type")) {
             "config" -> {
                 val mime = json.getString("mime")
                 val width = json.getInt("width")

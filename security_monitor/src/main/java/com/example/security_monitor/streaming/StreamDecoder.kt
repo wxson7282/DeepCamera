@@ -154,6 +154,7 @@ class StreamDecoder {
                     presentationTimeUs,
                     flags
                 )
+                Log.i(TAG, "输入帧数据: ${data.size} 字节, 帧类型: $frameType, 展示时间戳: $presentationTimeUs")
             }
         } catch (e: Exception) {
             Log.e(TAG, "输入帧数据失败", e)
@@ -219,7 +220,7 @@ class StreamDecoder {
                 when {
                     outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                         val newFormat = codec.outputFormat
-                        Log.d(TAG, "解码器输出格式: $newFormat")
+                        Log.i(TAG, "解码器输出格式: $newFormat")
                     }
                     outputIndex >= 0 -> {
                         // 渲染到 Surface（render=true）
