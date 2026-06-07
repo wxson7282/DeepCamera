@@ -144,6 +144,7 @@ class StreamDecoder {
 
                 val flags = when (frameType) {
                     StreamClient.FRAME_TYPE_CONFIG -> MediaCodec.BUFFER_FLAG_CODEC_CONFIG
+                    StreamClient.FRAME_TYPE_KEY_FRAME -> MediaCodec.BUFFER_FLAG_KEY_FRAME
                     else -> 0
                 }
 
@@ -223,8 +224,14 @@ class StreamDecoder {
                         Log.i(TAG, "解码器输出格式: $newFormat")
                     }
                     outputIndex >= 0 -> {
-                        // 渲染到 Surface（render=true）
-                        codec.releaseOutputBuffer(outputIndex, true)
+                        if (surface != null && surface!!.isValid && isConfigured) {
+                            // 渲染到 Surface（render=true）
+                            codec.releaseOutputBuffer(outputIndex, true)
+                            Log.i(TAG, "渲染帧数据: ${bufferInfo.size} 字节, 展示时间戳: ${bufferInfo.presentationTimeUs}")
+                        } else {
+                            Log.e(TAG, "Surface无效，无法渲染帧数据")
+                            codec.releaseOutputBuffer(outputIndex, false)
+                        }
 
                         if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
                             Log.i(TAG, "解码器收到 EOS")

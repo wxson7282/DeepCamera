@@ -36,7 +36,7 @@ class StreamClient(
     companion object {
         private const val TAG = "StreamClient"
         const val FRAME_TYPE_CONFIG = 0x01
-//        const val FRAME_TYPE_KEY_FRAME = 0x02
+        const val FRAME_TYPE_KEY_FRAME = 0x02
 //        const val FRAME_TYPE_P_FRAME = 0x03
     }
 

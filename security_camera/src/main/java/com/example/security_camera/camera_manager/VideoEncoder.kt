@@ -159,7 +159,7 @@ class VideoEncoder(
                 setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.AVCLevel31)
             }
 
-            // 创建配置并启动编码器
+            // 创建配置编码器
             mediaCodec = MediaCodec.createEncoderByType(mimeType).apply {
                 configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
             }
@@ -204,11 +204,20 @@ class VideoEncoder(
             initEncoder() // 初始化并启动MediaCodec
         }
         // 确保编码器只启动一次
-        if (!isCodecStarted) {
-            mediaCodec?.start()
-            isCodecStarted = true
+        if (!isCodecStarted && mediaCodec != null) {
+            try {
+                mediaCodec?.start()
+                isCodecStarted = true
+                Log.i(TAG, "编码器已启动")
+            } catch (e: Exception) {
+                Log.e(TAG, "启动编码器失败", e)
+                mediaCodec?.stop()
+                mediaCodec?.release()
+                mediaCodec = null
+                isCodecStarted = false
+            }
+
         }
-        Log.i(TAG, "编码器已启动")
     }
 
     /**
@@ -229,6 +238,8 @@ class VideoEncoder(
             }
             drainRemainingOutput()
             mediaCodec?.stop()
+            mediaCodec?.release()
+            mediaCodec = null
             isCodecStarted = false
             Log.i(TAG, "编码器已停止")
         } catch (e: Exception) {
@@ -277,7 +288,7 @@ class VideoEncoder(
                 processOutputBuffer()
 
             } catch (e: Exception) {
-                Log.e(TAG, "编码帧失败", e)
+                Log.e(TAG, "编码帧失败 watermarkedYuv size=${watermarkedYuv.size} isStreamActive=$isStreamActive isFileOutputActive=$isFileOutputActive isCodecStarted=$isCodecStarted", e)
             }
         }
     }
