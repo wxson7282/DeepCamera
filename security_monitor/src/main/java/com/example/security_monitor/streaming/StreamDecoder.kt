@@ -241,7 +241,9 @@ class StreamDecoder {
                     // INFO_TRY_AGAIN_LATER: 正常，继续轮询
                 }
             } catch (e: IllegalStateException) {
-                Log.e(TAG, "解码器状态异常", e)
+                Log.e(TAG, "解码器状态异常 ${
+                    if (surface != null) "Surface有效" else "Surface无效" }" +
+                        " surface.isValid: ${surface?.isValid} isConfigured: $isConfigured", e)
                 break
             } catch (e: Exception) {
                 Log.e(TAG, "输出轮询异常", e)
