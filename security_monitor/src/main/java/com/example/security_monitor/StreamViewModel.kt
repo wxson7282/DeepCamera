@@ -56,7 +56,7 @@ class StreamViewModel : ViewModel() {
                     codecName = if (mime.contains("HEVC", ignoreCase = true)) "H265" else "H264"
                 )
                 // 配置解码器
-                streamDecoder?.configure(mime, width, height, csd0, csd1)
+                streamDecoder?.configure(mime, width, height, csd0, csd1, 90)
             },
             onFrameReceived = { data, frameType, pts ->
                 // 喂数据给解码器

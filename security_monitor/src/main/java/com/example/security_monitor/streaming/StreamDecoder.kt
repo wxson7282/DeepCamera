@@ -25,13 +25,15 @@ class StreamDecoder {
 
     companion object {
         private const val TAG = "StreamDecoder"
-        private const val TIMEOUT_US = 10000L
+        private const val TIMEOUT_US = 100L
     }
 
     private var decoder: MediaCodec? = null
+    @Volatile
     private var surface: Surface? = null
     private var isConfigured = false
     private var isDecoding = false
+    private var lastPresentationTimeUs: Long = 0
 
     // 缓存配置参数，Surface 后设置时需要重新 configure
     private var cachedMime: String? = null
@@ -39,6 +41,7 @@ class StreamDecoder {
     private var cachedHeight: Int = 0
     private var cachedCsd0: ByteArray? = null
     private var cachedCsd1: ByteArray? = null
+    private var cachedRotation: Int = 0
 
     // 解码线程
     private val decodeThread = Thread {
@@ -55,13 +58,14 @@ class StreamDecoder {
      * 如果 Surface 已设置，直接启动解码；
      * 否则缓存参数，等 Surface 设置后再启动。
      */
-    fun configure(mime: String, width: Int, height: Int, csd0: ByteArray, csd1: ByteArray) {
+    fun configure(mime: String, width: Int, height: Int, csd0: ByteArray, csd1: ByteArray, rotation: Int = 0) {
         // 缓存配置
         cachedMime = mime
         cachedWidth = width
         cachedHeight = height
         cachedCsd0 = csd0
         cachedCsd1 = csd1
+        cachedRotation = rotation
 
         // 释放旧的解码器
         releaseDecoder()
@@ -75,13 +79,23 @@ class StreamDecoder {
                 csd0Buffer.put(csd0)
                 csd0Buffer.flip()
                 format.setByteBuffer("csd-0", csd0Buffer)
+                Log.i(TAG, "设置 CSD-0: ${csd0.size} 字节")
+            } else {
+                Log.i(TAG, "未设置 CSD-0")
             }
             if (csd1.isNotEmpty()) {
                 val csd1Buffer = ByteBuffer.allocate(csd1.size)
                 csd1Buffer.put(csd1)
                 csd1Buffer.flip()
                 format.setByteBuffer("csd-1", csd1Buffer)
+                Log.i(TAG, "设置 CSD-1: ${csd1.size} 字节")
+            } else {
+                Log.i(TAG, "未设置 CSD-1")
             }
+
+            // 设置旋转角度（关键修改）
+            format.setInteger(MediaFormat.KEY_ROTATION, rotation)
+            Log.i(TAG, "设置视频旋转角度: $rotation 度")
 
             // 延迟多少帧都不报错
             format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, width * height * 3 / 2)
@@ -119,7 +133,7 @@ class StreamDecoder {
             val h = cachedHeight
             val c0 = cachedCsd0 ?: ByteArray(0)
             val c1 = cachedCsd1 ?: ByteArray(0)
-            configure(mime, w, h, c0, c1)
+            configure(mime, w, h, c0, c1, cachedRotation)
             Log.i(TAG, "Surface 已设置，重新配置解码器")
         }
     }
@@ -155,8 +169,12 @@ class StreamDecoder {
                     presentationTimeUs,
                     flags
                 )
-                Log.i(TAG, "输入帧数据: ${data.size} 字节, 帧类型: $frameType, 展示时间戳: $presentationTimeUs")
-            }
+                Log.i(TAG, "输入帧数据: ${data.size}字节, 帧类型: ${when(frameType) {
+                    StreamClient.FRAME_TYPE_CONFIG -> "配置帧"
+                    StreamClient.FRAME_TYPE_KEY_FRAME -> "关键帧"
+                    else -> "普通帧"
+                }}, 时间戳: $presentationTimeUs, 上一帧时间戳: $lastPresentationTimeUs")
+                lastPresentationTimeUs = presentationTimeUs            }
         } catch (e: Exception) {
             Log.e(TAG, "输入帧数据失败", e)
         }
@@ -168,6 +186,12 @@ class StreamDecoder {
     fun release() {
         isDecoding = false
         decodeThreadRunning = false
+        try {
+            decodeThread.join()
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            Log.w(TAG, "等待解码线程退出被中断", e)
+        }
         releaseDecoder()
         surface = null
         cachedMime = null
@@ -199,7 +223,8 @@ class StreamDecoder {
         decodeThreadRunning = true
         decodeThread.apply {
             if (!isAlive) {
-                Thread({ drainOutputLoop() }, "StreamDecodeOutput").start()
+//                Thread({ drainOutputLoop() }, "StreamDecodeOutput").start()
+                start()
             }
         }
     }
@@ -221,13 +246,20 @@ class StreamDecoder {
                 when {
                     outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                         val newFormat = codec.outputFormat
-                        Log.i(TAG, "解码器输出格式: $newFormat")
+                        Log.i(TAG, "解码器输出格式变化: ${newFormat.getString(MediaFormat.KEY_MIME)} " +
+                                "${newFormat.getInteger(MediaFormat.KEY_WIDTH)}x${newFormat.getInteger(MediaFormat.KEY_HEIGHT)}")
                     }
                     outputIndex >= 0 -> {
                         if (surface != null && surface!!.isValid && isConfigured) {
-                            // 渲染到 Surface（render=true）
-                            codec.releaseOutputBuffer(outputIndex, true)
-                            Log.i(TAG, "渲染帧数据: ${bufferInfo.size} 字节, 展示时间戳: ${bufferInfo.presentationTimeUs}")
+                            val currentSurface = surface
+                            if (currentSurface != null && currentSurface.isValid) {
+                                // 渲染到 Surface（render=true）
+                                codec.releaseOutputBuffer(outputIndex, true)
+                                Log.i(TAG, "outputIndex=$outputIndex 渲染帧数据: ${bufferInfo.size} 字节, 展示时间戳: ${bufferInfo.presentationTimeUs}")
+                            } else {
+                                Log.e(TAG, "Surface无效，无法渲染帧数据")
+                                codec.releaseOutputBuffer(outputIndex, false)
+                            }
                         } else {
                             Log.e(TAG, "Surface无效，无法渲染帧数据")
                             codec.releaseOutputBuffer(outputIndex, false)

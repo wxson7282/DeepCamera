@@ -73,14 +73,20 @@ class StreamWebSocketServer(port: Int = DEFAULT_PORT) :
     override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
         Log.i(TAG, "客户端连接: ${conn.remoteSocketAddress}")
         synchronized(clientLock) {
-            val simpleConfig = """{
-                "type":"config",
-                "mime":"$videoMime",
-                "width":$videoWidth,
-                "height":$videoHeight
-            }""".trimIndent()
-            conn.send(simpleConfig)
-            Log.i(TAG, "已发送简化配置 JSON")
+            val configJson = buildConfigJson()
+            if (configJson != null) {
+                conn.send(configJson)
+                Log.i(TAG, "已发送完整配置 JSON: $configJson")
+            } else {
+                val simpleConfig = """{
+                    "type":"config",
+                    "mime":"$videoMime",
+                    "width":$videoWidth,
+                    "height":$videoHeight
+                }""".trimIndent()
+                conn.send(simpleConfig)
+                Log.i(TAG, "已发送简化配置 JSON")
+            }
 
             val configData = cachedCodecConfigData
             if (configData != null) {
@@ -151,7 +157,7 @@ class StreamWebSocketServer(port: Int = DEFAULT_PORT) :
             val configJson = buildConfigJson()
             if (configJson != null) {
                 broadcast(configJson)
-                Log.d(TAG, "配置变更已广播")
+                Log.i(TAG, "配置变更已广播")
             }
         }
     }

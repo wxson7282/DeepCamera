@@ -128,12 +128,14 @@ class StreamClient(
                 val csd0 = if (csd0Base64.isNotEmpty()) {
                     Base64.decode(csd0Base64, Base64.NO_WRAP)
                 } else {
+                    Log.e(TAG, "csd0 缺失")
                     ByteArray(0)
                 }
 
                 val csd1 = if (csd1Base64.isNotEmpty()) {
                     Base64.decode(csd1Base64, Base64.NO_WRAP)
                 } else {
+                    Log.e(TAG, "csd1 缺失")
                     ByteArray(0)
                 }
 

@@ -60,13 +60,14 @@ class VideoEncoder(
     private var encodedDataListener: OnEncodedDataListener? = null
 
     // 编码器MIME类型
-    private val mimeType = if (HevcSupportUtils.isHevcEncoderSupportedForSize(width, height, bitRate, frameRate)) {
-        Log.i(TAG, "使用 HEVC H265 编码器")
-        MediaFormat.MIMETYPE_VIDEO_HEVC
-    } else {
-        Log.i(TAG, "使用 AVC H264 编码器")
-        MediaFormat.MIMETYPE_VIDEO_AVC
-    }
+//    private val mimeType = if (HevcSupportUtils.isHevcEncoderSupportedForSize(width, height, bitRate, frameRate)) {
+//        Log.i(TAG, "使用 HEVC H265 编码器")
+//        MediaFormat.MIMETYPE_VIDEO_HEVC
+//    } else {
+//        Log.i(TAG, "使用 AVC H264 编码器")
+//        MediaFormat.MIMETYPE_VIDEO_AVC
+//    }
+    private val mimeType = MediaFormat.MIMETYPE_VIDEO_AVC
 
     // 新增状态跟踪变量
     private var isStreamActive = false // 流传输是否活跃
@@ -89,6 +90,10 @@ class VideoEncoder(
         if (newStreamActive != isStreamActive) {
             encodedDataListener = listener
             isStreamActive = newStreamActive
+//            // ****************************************************************************************************
+//            // 初始化时通知格式变更，确保客户端能及时获取到编码器config帧
+//            encodedDataListener?.onFormatChanged(mediaCodec?.outputFormat ?: return)
+//            // ****************************************************************************************************
             Log.i(TAG, "编码数据监听器: ${if (listener != null) "已设置" else "已移除"}")
             updateEncoderState() // 检查是否需要启动/停止编码器
         }
@@ -312,8 +317,8 @@ class VideoEncoder(
                         Log.i(TAG, "编码器输出格式改变: $newFormat")
                         outputFormat = newFormat // 缓存格式用于后续文件输出启动
 
-                        // 通知流监听器格式变化
-                        encodedDataListener?.onFormatChanged(newFormat)
+//                        // 通知流监听器格式变化
+//                        encodedDataListener?.onFormatChanged(newFormat)
 
                         // 如果文件输出活跃，立即配置Muxer
                         synchronized(encoderLock) {
