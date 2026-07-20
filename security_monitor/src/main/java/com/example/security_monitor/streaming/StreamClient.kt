@@ -74,7 +74,7 @@ class StreamClient(
 
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
                 try {
-                    Log.i(TAG, "收到二进制消息: ${bytes.size}")
+                    Log.d(TAG, "收到二进制消息: ${bytes.size}")
                     handleBinaryMessage(bytes)
                 } catch (e: Exception) {
                     Log.e(TAG, "处理二进制消息失败", e)

@@ -59,6 +59,7 @@ class StreamViewModel : ViewModel() {
                 streamDecoder?.configure(mime, width, height, csd0, csd1, 90)
             },
             onFrameReceived = { data, frameType, pts ->
+                Log.d(TAG, "收到帧: $frameType ${data.size} bytes pts: $pts")
                 // 喂数据给解码器
                 streamDecoder?.feedData(data, frameType, pts)
                 // 更新帧计数

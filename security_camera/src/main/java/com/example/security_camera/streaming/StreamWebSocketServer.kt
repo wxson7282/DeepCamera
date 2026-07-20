@@ -162,6 +162,13 @@ class StreamWebSocketServer(port: Int = DEFAULT_PORT) :
         }
     }
 
+
+     /**
+      * 处理编码后的视频帧
+      * @param data 编码后的视频帧数据
+      * @param flags 编码标志位
+      * @param presentationTimeUs 帧的 presentation 时间戳，单位微秒
+      */
     fun onEncodedFrame(data: ByteArray, flags: Int, presentationTimeUs: Long) {
         // ★ 关键修复：即使没有客户端连接，也要先缓存 config 帧！
         Log.d(TAG, "onEncodedFrame, flags=$flags, presentationTimeUs=$presentationTimeUs, data size=${data.size}")
@@ -169,16 +176,19 @@ class StreamWebSocketServer(port: Int = DEFAULT_PORT) :
         var frameType: Int
 
         when {
+            // 配置帧
             flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0 -> {
                 cachedCodecConfigData = data
                 cachedCodecConfigPts = presentationTimeUs
                 frameType = FRAME_TYPE_CONFIG
                 Log.i(TAG, "✅ 已缓存 codec config 帧，大小: ${data.size} bytes")
             }
+            // 关键帧
             flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0 -> {
                 frameType = FRAME_TYPE_KEY_FRAME
                 Log.d(TAG, "key frame，大小: ${data.size} bytes")
             }
+            // P 帧
             else -> {
                 frameType = FRAME_TYPE_P_FRAME
                 Log.d(TAG, "p frame，大小: ${data.size} bytes")

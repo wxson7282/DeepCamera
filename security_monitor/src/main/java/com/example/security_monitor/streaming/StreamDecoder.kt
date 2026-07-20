@@ -70,52 +70,58 @@ class StreamDecoder {
         // 释放旧的解码器
         releaseDecoder()
 
-        try {
-            val format = MediaFormat.createVideoFormat(mime, width, height)
+        if (surface?.isValid == true) {
+            try {
+                val format = MediaFormat.createVideoFormat(mime, width, height)
 
-            // 设置 CSD（解码器必需的 SPS/PPS 信息）
-            if (csd0.isNotEmpty()) {
-                val csd0Buffer = ByteBuffer.allocate(csd0.size)
-                csd0Buffer.put(csd0)
-                csd0Buffer.flip()
-                format.setByteBuffer("csd-0", csd0Buffer)
-                Log.i(TAG, "设置 CSD-0: ${csd0.size} 字节")
-            } else {
-                Log.i(TAG, "未设置 CSD-0")
+                // 设置 CSD（解码器必需的 SPS/PPS 信息）
+                if (csd0.isNotEmpty()) {
+                    val csd0Buffer = ByteBuffer.allocate(csd0.size)
+                    csd0Buffer.put(csd0)
+                    csd0Buffer.flip()
+                    format.setByteBuffer("csd-0", csd0Buffer)
+                    Log.i(TAG, "设置 CSD-0: ${csd0.size} 字节")
+                } else {
+                    Log.i(TAG, "未设置 CSD-0")
+                }
+                if (csd1.isNotEmpty()) {
+                    val csd1Buffer = ByteBuffer.allocate(csd1.size)
+                    csd1Buffer.put(csd1)
+                    csd1Buffer.flip()
+                    format.setByteBuffer("csd-1", csd1Buffer)
+                    Log.i(TAG, "设置 CSD-1: ${csd1.size} 字节")
+                } else {
+                    Log.i(TAG, "未设置 CSD-1")
+                }
+
+                // 设置旋转角度（关键修改）
+                format.setInteger(MediaFormat.KEY_ROTATION, rotation)
+                Log.i(TAG, "设置视频旋转角度: $rotation 度")
+
+                // 延迟多少帧都不报错
+                format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, width * height * 3 / 2)
+
+                decoder = MediaCodec.createDecoderByType(mime).apply {
+                    configure(format, surface, null, 0)
+                    start()
+                }
+
+                isConfigured = true
+                isDecoding = true
+
+                // 启动输出轮询线程
+                startDrainThread()
+
+                Log.i(TAG, "解码器配置成功: $mime ${width}x${height}")
+            } catch (e: Exception) {
+                Log.e(TAG, "解码器配置失败", e)
+                isConfigured = false
             }
-            if (csd1.isNotEmpty()) {
-                val csd1Buffer = ByteBuffer.allocate(csd1.size)
-                csd1Buffer.put(csd1)
-                csd1Buffer.flip()
-                format.setByteBuffer("csd-1", csd1Buffer)
-                Log.i(TAG, "设置 CSD-1: ${csd1.size} 字节")
-            } else {
-                Log.i(TAG, "未设置 CSD-1")
-            }
-
-            // 设置旋转角度（关键修改）
-            format.setInteger(MediaFormat.KEY_ROTATION, rotation)
-            Log.i(TAG, "设置视频旋转角度: $rotation 度")
-
-            // 延迟多少帧都不报错
-            format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, width * height * 3 / 2)
-
-            decoder = MediaCodec.createDecoderByType(mime).apply {
-                configure(format, surface, null, 0)
-                start()
-            }
-
-            isConfigured = true
-            isDecoding = true
-
-            // 启动输出轮询线程
-            startDrainThread()
-
-            Log.i(TAG, "解码器配置成功: $mime ${width}x${height}")
-        } catch (e: Exception) {
-            Log.e(TAG, "解码器配置失败", e)
+        } else {
+            Log.i(TAG, "Surface尚未准备好，暂不配置解码器")
             isConfigured = false
         }
+
     }
 
     /**
@@ -127,7 +133,7 @@ class StreamDecoder {
         surface = newSurface
 
         // 如果已有配置但没有 Surface（或 Surface 变了），重新配置
-        if (cachedMime != null && isConfigured) {
+        if (cachedMime != null) {
             val mime = cachedMime!!
             val w = cachedWidth
             val h = cachedHeight
@@ -174,7 +180,10 @@ class StreamDecoder {
                     StreamClient.FRAME_TYPE_KEY_FRAME -> "关键帧"
                     else -> "普通帧"
                 }}, 时间戳: $presentationTimeUs, 上一帧时间戳: $lastPresentationTimeUs")
-                lastPresentationTimeUs = presentationTimeUs            }
+                lastPresentationTimeUs = presentationTimeUs}
+            else {
+                Log.w(TAG, "输入帧数据失败: 超时")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "输入帧数据失败", e)
         }
