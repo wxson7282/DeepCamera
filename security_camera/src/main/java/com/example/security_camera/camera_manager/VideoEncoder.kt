@@ -60,14 +60,13 @@ class VideoEncoder(
     private var encodedDataListener: OnEncodedDataListener? = null
 
     // 编码器MIME类型
-//    private val mimeType = if (HevcSupportUtils.isHevcEncoderSupportedForSize(width, height, bitRate, frameRate)) {
-//        Log.i(TAG, "使用 HEVC H265 编码器")
-//        MediaFormat.MIMETYPE_VIDEO_HEVC
-//    } else {
-//        Log.i(TAG, "使用 AVC H264 编码器")
-//        MediaFormat.MIMETYPE_VIDEO_AVC
-//    }
-    private val mimeType = MediaFormat.MIMETYPE_VIDEO_AVC
+    private val mimeType = if (HevcSupportUtils.isHevcEncoderSupportedForSize(width, height, bitRate, frameRate)) {
+        Log.i(TAG, "使用 HEVC H265 编码器")
+        MediaFormat.MIMETYPE_VIDEO_HEVC
+    } else {
+        Log.i(TAG, "使用 AVC H264 编码器")
+        MediaFormat.MIMETYPE_VIDEO_AVC
+    }
 
     // 新增状态跟踪变量
     private var isStreamActive = false // 流传输是否活跃
