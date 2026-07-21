@@ -83,6 +83,7 @@ class VideoEncoder(
 
     /**
      * 设置编码数据监听器（网络流）
+     * @param listener 编码数据监听器
      */
     fun setEncodedDataListener(listener: OnEncodedDataListener?) {
         val newStreamActive = listener != null
