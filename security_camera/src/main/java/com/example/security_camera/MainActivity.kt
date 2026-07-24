@@ -37,7 +37,8 @@ class MainActivity : ComponentActivity() {
         myCameraManager = MyCameraManager(
             context = this,
             lifecycleOwner = this@MainActivity,
-            sharedPreferences = sharedPreferences
+            sharedPreferences = sharedPreferences,
+            window = window
         )
 
         if (checkSelfPermission(android.Manifest.permission.CAMERA) !=

@@ -41,9 +41,11 @@ class SecurityCameraViewModel : ViewModel() {
                             state.copy(isVideoRecoding = false)
                         }
                         Action.TurnOnScreen -> run {
+                            myCameraManager?.toggleScreenOffMode(true)
                             state.copy(isScreenOn = true)
                         }
                         Action.TurnOffScreen -> run {
+                            myCameraManager?.toggleScreenOffMode(false)
                             state.copy(isScreenOn = false)
                         }
                         Action.StartStream -> run {

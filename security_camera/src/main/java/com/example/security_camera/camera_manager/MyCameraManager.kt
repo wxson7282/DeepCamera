@@ -1,16 +1,21 @@
 package com.example.security_camera.camera_manager
 
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.hardware.camera2.CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES
 import android.os.CountDownTimer
 import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
+import android.os.PowerManager
 import android.util.Log
 import android.util.Range
 import android.util.Size
 import android.view.ViewGroup
+import android.view.Window
+import android.view.WindowManager
 import androidx.annotation.OptIn
 import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
@@ -29,6 +34,7 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.Quality
 import androidx.camera.view.PreviewView
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.example.security_camera.streaming.StreamManager
 import com.example.security_camera.streaming.VideoStreamService
@@ -61,10 +67,12 @@ import kotlin.properties.Delegates
 class MyCameraManager(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
-    private val sharedPreferences: SharedPreferences? = null
+    private val sharedPreferences: SharedPreferences? = null,
+    private val window: Window? = null
 ) {
     companion object {
         private const val TAG = "MyCameraManager"
+        private const val WAKE_LOCK_TAG = "SecurityCamera:WakeLock"
     }
 
     // ==================== 配置参数 ====================
@@ -118,8 +126,11 @@ class MyCameraManager(
     // ==================== 流传输状态 ====================
     @Volatile
     private var isStreamingEnabled = false
-
     private var yuvInfo: String? = null
+    // 添加唤醒锁和屏幕控制相关变量
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var isScreenOffMode = false
+
 
     // ==================== 初始化 ====================
 
@@ -180,6 +191,65 @@ class MyCameraManager(
         createEncoder()
         cameraProvider = cameraProviderFuture.get()
         bindCameraUseCases()
+        initWakeLock()
+    }
+
+    /**
+     * 初始化唤醒锁
+     */
+    private fun initWakeLock() {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            WAKE_LOCK_TAG
+        )
+    }
+
+    /**
+     * 切换息屏模式
+     */
+    fun toggleScreenOffMode(enable: Boolean) {
+        isScreenOffMode = enable
+        window?.let {
+            // 使用主线程Handler确保UI操作在主线程执行
+            Handler(Looper.getMainLooper()).post{
+                // 开启息屏模式：最低亮度 + 保持屏幕开启标志
+                val params = it.attributes
+                if (enable) {
+                    params.screenBrightness = 0.01f
+                    it.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    // 获取唤醒锁
+                    wakeLock?.acquire(10*60*1000L) // 10分钟超时，需要定期刷新
+                    // 启动前台服务
+                    startForegroundService()
+                } else {
+                    // 关闭息屏模式：恢复亮度 + 清除标志
+                    params.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                    it.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    // 释放唤醒锁
+                    wakeLock?.release()
+                    // 停止前台服务
+                    stopForegroundService()
+                }
+                it.attributes = params
+            }
+        }
+    }
+
+    /**
+     * 启动前台服务保持进程活跃
+     */
+    private fun startForegroundService() {
+        val serviceIntent = Intent(context, CameraForegroundService::class.java)
+        ContextCompat.startForegroundService(context, serviceIntent)
+    }
+
+    /**
+     * 停止前台服务
+     */
+    private fun stopForegroundService() {
+        val serviceIntent = Intent(context, CameraForegroundService::class.java)
+        context.stopService(serviceIntent)
     }
 
     /**
@@ -188,6 +258,15 @@ class MyCameraManager(
     fun release() {
         stopRecord()
         stopStreaming()
+        // 释放唤醒锁
+        wakeLock?.release()
+        // 恢复屏幕设置
+        window?.let {
+            val params = it.attributes
+            params.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            it.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            it.attributes = params
+        }
         cameraProvider?.unbindAll()
         releaseEncoder()
         watermarkOverlay?.release()

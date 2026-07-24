@@ -1,8 +1,6 @@
 package com.example.security_camera
 
 import androidx.camera.view.PreviewView
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -50,16 +47,14 @@ fun CameraBody(
             IconButton(
                 onClick = { clickable.onStreamBtnPressed() }) {
                 Icon(
-                    imageVector = if (viewState.isStreaming) ImageVector.vectorResource(R.drawable.screen_share_off)
-                    else ImageVector.vectorResource(R.drawable.screen_share),
+                    imageVector = if (viewState.isStreaming) ImageVector.vectorResource(R.drawable.monitor_off)
+                    else ImageVector.vectorResource(R.drawable.monitor_on),
                     contentDescription = "Stream",
                     tint = if (viewState.isStreaming) Color(0xFF4CAF50) else Color.White
                 )
             }
 
             // 录像按钮
-            val mutableInteractionSource = remember { MutableInteractionSource() }
-            val isPressed = mutableInteractionSource.collectIsPressedAsState().value
             IconButton(
                 onClick = { clickable.onRecordBtnPressed() }) {
                 Icon(
@@ -74,8 +69,9 @@ fun CameraBody(
             IconButton(
                 onClick = { clickable.onScreenOffBtnPressed() }) {
                 Icon(
-                    imageVector = ImageVector.vectorResource(R.drawable.screen_off_24),
-                    contentDescription = "Screen"
+                    imageVector = ImageVector.vectorResource(R.drawable.low_brightness),
+                    contentDescription = "Screen",
+                    tint = Color.White
                 )
             }
         }
