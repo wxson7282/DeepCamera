@@ -3,6 +3,7 @@ package com.example.security_camera.camera_manager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.Build
@@ -34,10 +35,21 @@ class CameraForegroundService: Service() {
     }
 
     private fun createNotification(): Notification {
+        // 创建点击通知时打开的Intent（假设你有一个MainActivity）
+        val intent = Intent(this, com.example.security_camera.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE // 适配Android 12+的安全要求
+        )
         return NotificationCompat.Builder(this, channelId)
             .setContentTitle("安全监控中")
             .setContentText("后台录制和传输已启用")
             .setSmallIcon(R.drawable.ic_notifications)  // 需要添加通知图标
+            .setContentIntent(pendingIntent) // 添加这行解决空指针问题
             .build()
     }
 
