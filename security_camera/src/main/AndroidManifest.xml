@@ -37,7 +37,7 @@
             tools:ignore="ForegroundServicePermission" />
         <service android:name=".camera_manager.CameraForegroundService"
             android:foregroundServiceType="camera"
-            android:exported="true"
+            android:exported="false"
             android:permission="android.permission.CAMERA"
             tools:ignore="ForegroundServicePermission"/>
 

@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.security_camera.camera_manager.MyCameraManager
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,7 +43,7 @@ fun MainSurface(
     LaunchedEffect(viewState.isStreaming) {
         while (viewState.isStreaming) {
             viewModel.updateStreamClientCount()
-            kotlinx.coroutines.delay(2000)
+            kotlinx.coroutines.delay(2000.milliseconds)
         }
     }
 
