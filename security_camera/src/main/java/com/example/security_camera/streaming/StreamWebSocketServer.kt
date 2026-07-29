@@ -60,8 +60,13 @@ class StreamWebSocketServer(port: Int = DEFAULT_PORT) :
                     } catch (_: Exception) {
                     }
                 }
+                // 释放缓存资源
+                cachedConfig = null
+                cachedFormat = null
+                cachedCodecConfigData = null
             }
             stop()
+            isServerRunning = false
             Log.i(TAG, "WebSocket 服务器已停止")
         } catch (e: Exception) {
             Log.e(TAG, "WebSocket 服务器停止失败", e)
@@ -109,6 +114,7 @@ class StreamWebSocketServer(port: Int = DEFAULT_PORT) :
     }
 
     override fun onMessage(conn: WebSocket, message: ByteBuffer) {
+        Log.d(TAG, "收到二进制消息: ${message.remaining()}")
     }
 
     override fun onError(conn: WebSocket?, ex: Exception) {

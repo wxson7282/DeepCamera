@@ -65,10 +65,10 @@ class StreamManager private constructor() : OnEncodedDataListener {
             Log.w(TAG, "流媒体服务未运行")
             return
         }
-
         webSocketServer?.stopServer()
         webSocketServer = null
         isStreaming = false
+        instance = null
         Log.i(TAG, "流媒体服务已停止")
     }
 

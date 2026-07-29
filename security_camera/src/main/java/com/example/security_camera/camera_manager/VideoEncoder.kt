@@ -72,7 +72,9 @@ class VideoEncoder(
     private var isStreamActive = false // 流传输是否活跃
     private var isFileOutputActive = false // 文件输出是否活跃
     private var isCodecStarted = false // 编码器是否已启动
-    private var outputFormat: MediaFormat? = null // 缓存编码器输出格式，用于文件输出动态启动
+
+    // 缓存编码器输出格式，用于文件输出动态启动
+    private var cachedFileOutputFormat: MediaFormat? = null
 
 
     init {
@@ -90,10 +92,8 @@ class VideoEncoder(
         if (newStreamActive != isStreamActive) {
             encodedDataListener = listener
             isStreamActive = newStreamActive
-//            // ****************************************************************************************************
-//            // 初始化时通知格式变更，确保客户端能及时获取到编码器config帧
-//            encodedDataListener?.onFormatChanged(mediaCodec?.outputFormat ?: return)
-//            // ****************************************************************************************************
+            // 初始化时通知格式变更，确保客户端能及时获取到编码器config帧
+            encodedDataListener?.onFormatChanged(mediaCodec?.outputFormat ?: return)
             Log.i(TAG, "编码数据监听器: ${if (listener != null) "已设置" else "已移除"}")
             updateEncoderState() // 检查是否需要启动/停止编码器
         }
@@ -115,7 +115,7 @@ class VideoEncoder(
             updateEncoderState() // 检查是否需要启动编码器
 
             // 如果已获取输出格式，立即配置Muxer
-            outputFormat?.let { format ->
+            cachedFileOutputFormat?.let { format ->
                 trackIndex = mediaMuxer?.addTrack(format) ?: -1
                 mediaMuxer?.start()
                 muxerStarted = true
@@ -263,6 +263,11 @@ class VideoEncoder(
     fun encodeFrame(watermarkedYuv: ByteArray, presentationTimeNs: Long) {
         Log.d(TAG, "encodeFrame start, watermarkedYuv size=${watermarkedYuv.size}, presentationTimeNs=$presentationTimeNs")
         synchronized(encoderLock) {
+            // 检查编码器状态，如果应该活跃但未启动，则尝试启动
+            if ((isStreamActive || isFileOutputActive) && !isCodecStarted) {
+                Log.w(TAG, "编码器应该活跃但未启动，尝试启动编码器")
+                startEncoder()
+            }
             val codec = mediaCodec ?: return
 
             try {
@@ -292,7 +297,18 @@ class VideoEncoder(
                 // 处理输出缓冲区
                 processOutputBuffer()
 
-            } catch (e: Exception) {
+            } catch (e: IllegalStateException){
+                Log.e(TAG, "MediaCodec已处于非法状态，无法获取输入缓冲区", e)
+                // 重置编码器状态
+                isCodecStarted = false
+                mediaCodec?.stop()
+                mediaCodec?.release()
+                mediaCodec = null
+                // 尝试重新启动编码器
+                startEncoder()
+                return
+            }
+            catch (e: Exception) {
                 Log.e(TAG, "编码帧失败 watermarkedYuv size=${watermarkedYuv.size} isStreamActive=$isStreamActive isFileOutputActive=$isFileOutputActive isCodecStarted=$isCodecStarted", e)
             }
         }
@@ -315,10 +331,10 @@ class VideoEncoder(
                     outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                         val newFormat = codec.outputFormat
                         Log.i(TAG, "编码器输出格式改变: $newFormat")
-                        outputFormat = newFormat // 缓存格式用于后续文件输出启动
+                        cachedFileOutputFormat = newFormat // 缓存格式用于后续文件输出启动
 
-//                        // 通知流监听器格式变化
-//                        encodedDataListener?.onFormatChanged(newFormat)
+                        // 通知流监听器格式变化
+                        encodedDataListener?.onFormatChanged(newFormat)
 
                         // 如果文件输出活跃，立即配置Muxer
                         synchronized(encoderLock) {
@@ -374,6 +390,11 @@ class VideoEncoder(
     fun stop() {
         synchronized(encoderLock) {
             try {
+                // 检查编码器是否已启动且未被释放
+                if (mediaCodec == null || !isCodecStarted) {
+                    Log.w(TAG, "编码器未启动或已释放，无需停止")
+                    return
+                }
                 // 发送结束标记
                 val inputBufferIndex = mediaCodec?.dequeueInputBuffer(TIMEOUT_US) ?: -1
                 if (inputBufferIndex >= 0) {
@@ -388,7 +409,9 @@ class VideoEncoder(
 
                 // 处理剩余输出
                 drainRemainingOutput()
-
+                // 停止编码器
+                mediaCodec?.stop()
+                isCodecStarted = false
             } catch (e: Exception) {
                 Log.e(TAG, "停止编码器失败", e)
             }
@@ -440,6 +463,7 @@ class VideoEncoder(
     fun release() {
         synchronized(encoderLock) {
             try {
+                stop()
                 // 停止所有输出
                 stopFileOutput()
                 encodedDataListener = null

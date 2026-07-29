@@ -38,11 +38,17 @@ class VideoStreamService : Service() {
 
         const val EXTRA_PORT = "port"
         const val DEFAULT_PORT = 8080
+        @Volatile
+        private var isServiceRunning = false
 
         /**
          * 启动流媒体服务
          */
         fun start(context: Context, port: Int = DEFAULT_PORT) {
+            if (isServiceRunning) {
+                Log.i(TAG, "视频流服务已在运行中")
+                return
+            }
             val intent = Intent(context, VideoStreamService::class.java).apply {
                 putExtra(EXTRA_PORT, port)
             }
@@ -57,6 +63,10 @@ class VideoStreamService : Service() {
          * 停止流媒体服务
          */
         fun stop(context: Context) {
+            if (!isServiceRunning) {
+                Log.i(TAG, "视频流服务未在运行")
+                return
+            }
             context.stopService(Intent(context, VideoStreamService::class.java))
         }
     }
@@ -68,6 +78,7 @@ class VideoStreamService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        isServiceRunning = true
         val port = intent?.getIntExtra(EXTRA_PORT, DEFAULT_PORT) ?: DEFAULT_PORT
 
         // 启动前台通知
@@ -82,7 +93,12 @@ class VideoStreamService : Service() {
     }
 
     override fun onDestroy() {
-        StreamManager.getInstance().stop()
+        val streamManager = StreamManager.getInstance()
+        if (streamManager.isRunning()) {
+            streamManager.stop()
+            Log.i(TAG, "StreamManager 已停止")
+        }
+        isServiceRunning = false
         Log.i(TAG, "视频流服务已停止")
         super.onDestroy()
     }

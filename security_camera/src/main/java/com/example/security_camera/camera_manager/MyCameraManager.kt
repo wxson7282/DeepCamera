@@ -259,7 +259,9 @@ class MyCameraManager(
         stopRecord()
         stopStreaming()
         // 释放唤醒锁
-        wakeLock?.release()
+        if (wakeLock?.isHeld == true) {
+            wakeLock?.release()
+        }
         // 恢复屏幕设置
         window?.let {
             val params = it.attributes
@@ -524,16 +526,38 @@ class MyCameraManager(
         if (!isStreamingEnabled) {
             return
         }
-        isStreamingEnabled = false
+        Log.i(TAG, "开始停止流传输")
+        // 先停止编码器数据监听，防止新数据产生
+        encoderHandler?.post {
+            try{
+                videoEncoder?.setEncodedDataListener(null)
+                Log.i(TAG, "编码器数据监听器已移除")
+            }
+            catch (e: Exception) {
+                Log.e(TAG, "移除编码器监听器失败", e)
+            }
+            finally {
+                // 在编码器线程中执行后续停止操作，确保线程安全
+                try {
+                    // 停止WebSocket服务器
+                    if (StreamManager.getInstance().isRunning()) {
+                        StreamManager.getInstance().stop()
+                        Log.i(TAG, "WebSocket服务器已停止")
+                    }
 
-        // 移除编码器监听器
-        videoEncoder?.setEncodedDataListener(null)
+                    // 停止视频流服务
+                    VideoStreamService.stop(context)
+                    Log.i(TAG, "视频流服务已停止")
 
-        // 停止 WebSocket 服务器和服务
-        StreamManager.getInstance().stop()
-        VideoStreamService.stop(context)
-
-        Log.i(TAG, "流传输已停止")
+                    // 最后更新状态
+                    isStreamingEnabled = false
+                    Log.i(TAG, "流传输已完全停止")
+                }
+                catch (e: Exception) {
+                    Log.e(TAG, "停止流传输组件失败", e)
+                }
+            }
+        }
     }
 
     /**
