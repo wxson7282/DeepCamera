@@ -303,7 +303,8 @@ class MyCameraManager(
             FALLBACK_RULE_CLOSEST_LOWER
         )
         val aspectRatioStrategy = AspectRatioStrategy(
-            AspectRatio.RATIO_4_3,
+            if (videoCaptureQuality == "SD") AspectRatio.RATIO_4_3
+            else AspectRatio.RATIO_16_9,
             AspectRatioStrategy.FALLBACK_RULE_AUTO
         )
         val resolutionSelector = ResolutionSelector.Builder()
