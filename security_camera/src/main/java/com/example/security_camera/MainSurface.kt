@@ -65,6 +65,7 @@ fun MainSurface(
                 navigationIcon = {
                     IconButton(
                         modifier = Modifier.background(MaterialTheme.colorScheme.primary),
+                        enabled = !viewState.isStreaming,
                         onClick = { navigateToSettings(navController) }) {
                         Icon(imageVector = Icons.Filled.Settings,
                             contentDescription = "Settings")
