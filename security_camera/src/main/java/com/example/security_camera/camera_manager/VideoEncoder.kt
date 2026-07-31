@@ -269,6 +269,7 @@ class VideoEncoder(
                 startEncoder()
             }
             val codec = mediaCodec ?: return
+            if (!isCodecStarted) { return }
 
             try {
                 // 数据出列存入缓冲区
@@ -422,6 +423,7 @@ class VideoEncoder(
      * 排空剩余输出
      */
     private fun drainRemainingOutput() {
+        if (!isCodecStarted) { return }
         val bufferInfo = MediaCodec.BufferInfo()
         var outputDone = false
 
