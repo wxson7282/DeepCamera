@@ -305,8 +305,6 @@ class VideoEncoder(
                 mediaCodec?.stop()
                 mediaCodec?.release()
                 mediaCodec = null
-                // 尝试重新启动编码器
-                startEncoder()
                 return
             }
             catch (e: Exception) {
