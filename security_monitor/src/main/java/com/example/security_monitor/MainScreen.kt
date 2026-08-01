@@ -3,6 +3,12 @@ package com.example.security_monitor
 import android.content.SharedPreferences
 import android.view.SurfaceView
 import android.view.ViewGroup
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,6 +35,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.edit
@@ -169,13 +178,37 @@ fun MainScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Text(
-                        text = "帧: ${viewState.frameCount}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    FrameRateIndicator(frameCount = viewState.frameCount)
                 }
             }
         }
     }
 }
+
+@Composable
+private fun FrameRateIndicator(frameCount: Int) {
+    // 监听帧计数变化触发动画
+    LaunchedEffect(frameCount) {
+        // 当帧计数变化时触发闪烁效果
+    }
+    // 创建无限循环动画
+    val infiniteTransition = rememberInfiniteTransition(label = "frameBlink")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(500),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alphaAnimation"
+    )
+    Image(
+        imageVector = ImageVector.vectorResource(R.drawable.video_library),
+        contentDescription = "帧计数指示器",
+        modifier = Modifier.size(16.dp),
+        alpha = alpha,
+        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
+            Color.Red)
+    )
+}
+
